@@ -1,11 +1,17 @@
 import uuid
 from datetime import datetime, timezone
+from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, ForeignKey, Integer, String, Text, DateTime
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
+
+if TYPE_CHECKING:
+    from app.models.participant import Participant
+    from app.models.user import User
+
 
 class Room(Base):
     __tablename__ = "rooms"
@@ -17,7 +23,7 @@ class Room(Base):
         index=True,
     )
 
-    # 8-character uppercase alphanumeric code used to join the room.
+    # 8-character uppercase alphanumeric code shared with joiners.
     room_code: Mapped[str] = mapped_column(
         String(8),
         unique=True,
@@ -54,4 +60,21 @@ class Room(Base):
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
         nullable=False,
+    )
+
+    # ── Relationships ──────────────────────────────────────────────────────────
+
+    # The user who created and hosts this room.
+    host: Mapped["User"] = relationship(
+    "User",
+    back_populates="hosted_rooms",
+    lazy="select",
+)
+
+    # All participants currently in the room.
+    participants: Mapped[list["Participant"]] = relationship(
+        "Participant",
+        back_populates="room",
+        cascade="all, delete-orphan",
+        lazy="select",
     )

@@ -29,6 +29,7 @@ from app.db.base import Base
 # Import models so Alembic can discover them
 import app.models.user
 import app.models.room
+import app.models.participant
 
 target_metadata = Base.metadata
 

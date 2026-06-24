@@ -29,7 +29,6 @@ class CreateRoomRequest(BaseModel):
         description="Maximum number of participants allowed (2-100).",
     )
 
-
 class RoomResponse(BaseModel):
     """Room data returned to the client after creation."""
 
@@ -43,3 +42,29 @@ class RoomResponse(BaseModel):
     is_private: bool
     max_participants: int
     created_at: datetime
+
+
+class JoinRoomRequest(BaseModel):
+    room_code: str
+
+
+class ParticipantResponse(BaseModel):
+    id: uuid.UUID
+    room_id: uuid.UUID
+    user_id: uuid.UUID
+    is_host: bool
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class RoomDetailResponse(BaseModel):
+    id: uuid.UUID
+    room_code: str
+    title: str
+    description: str | None
+    is_private: bool
+    max_participants: int
+    participant_count: int
+    host_id: uuid.UUID
+
+    model_config = ConfigDict(from_attributes=True)

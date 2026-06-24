@@ -5,7 +5,14 @@ from app.core.security import get_current_user
 from app.db.session import get_db
 from app.models.user import User
 from app.schemas.room import CreateRoomRequest, RoomResponse
+from app.schemas.room import RoomDetailResponse
 from app.services.room_service import RoomService
+from app.schemas.room import (
+    CreateRoomRequest,
+    RoomResponse,
+    JoinRoomRequest,
+    ParticipantResponse
+)
 
 router = APIRouter(prefix="/api/v1/rooms", tags=["rooms"])
 
@@ -31,3 +38,39 @@ async def create_room(
     room_service = RoomService(db)
     new_room = await room_service.create_room(current_user, payload)
     return new_room
+
+
+@router.post(
+    "/join",
+    response_model=ParticipantResponse
+)
+async def join_room(
+    payload: JoinRoomRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+
+    room_service = RoomService(db)
+
+    participant = await room_service.join_room(
+        payload.room_code,
+        current_user
+    )
+
+    return participant
+
+@router.get(
+    "/{room_code}",
+    response_model=RoomDetailResponse
+)
+async def get_room(
+    room_code: str,
+    db: AsyncSession = Depends(get_db)
+):
+    room_service = RoomService(db)
+
+    room = await room_service.get_room_by_code(
+        room_code
+    )
+
+    return room

@@ -1,11 +1,17 @@
 import uuid
 from datetime import datetime, timezone
+from typing import TYPE_CHECKING
 
-from sqlalchemy import String, DateTime
+from sqlalchemy import DateTime, String
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
+
+if TYPE_CHECKING:
+    from app.models.participant import Participant
+    from app.models.room import Room
+
 
 class User(Base):
     __tablename__ = "users"
@@ -24,7 +30,6 @@ class User(Base):
         nullable=False,
     )
 
-    # Public-facing unique identifier (separate from the primary key / username)
     user_id: Mapped[str] = mapped_column(
         String(50),
         unique=True,
@@ -41,4 +46,22 @@ class User(Base):
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
         nullable=False,
+    )
+
+    # ── Relationships ──────────────────────────────────────────────────────────
+
+    # Rooms this user hosts.
+    hosted_rooms: Mapped[list["Room"]] = relationship(
+        "Room",
+        back_populates="host",
+        cascade="all, delete-orphan",
+        lazy="select",
+    )
+
+    # All rooms this user has joined (via Participant join table).
+    participations: Mapped[list["Participant"]] = relationship(
+        "Participant",
+        back_populates="user",
+        cascade="all, delete-orphan",
+        lazy="select",
     )
