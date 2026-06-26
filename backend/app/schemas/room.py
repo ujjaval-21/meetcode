@@ -68,3 +68,50 @@ class RoomDetailResponse(BaseModel):
     host_id: uuid.UUID
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class LeaveRoomRequest(BaseModel):
+    """Request payload for leaving a room."""
+
+    room_code: str = Field(
+        ...,
+        min_length=8,
+        max_length=8,
+        pattern=r"^[A-Z0-9]{8}$",
+        description="8-character uppercase room code.",
+    )
+
+class MessageResponse(BaseModel):
+    """Response returned after successfully leaving a room."""
+
+    message: str = Field(
+        ...,
+        description="Confirmation message.",
+    )
+    room_code: str = Field(
+        ...,
+        description="Room that the user left.",
+    )
+    user_id: uuid.UUID = Field(
+        ...,
+        description="User who left the room.",
+    )
+
+class RoomParticipantResponse(BaseModel):
+    """Information about a participant inside a room."""
+
+    user_id: uuid.UUID
+    username: str
+    is_host: bool
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class RoomParticipantsResponse(BaseModel):
+    """List of all participants in a room."""
+
+    room_code: str
+    participant_count: int
+    participants: list[RoomParticipantResponse]
+
+    

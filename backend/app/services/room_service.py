@@ -1,7 +1,8 @@
 import secrets
 import string
+from unittest import result
 
-from sqlalchemy import select
+from sqlalchemy import select, delete
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import HTTPException, status
@@ -9,7 +10,9 @@ from fastapi import HTTPException, status
 from app.models.room import Room
 from app.models.user import User
 from app.models.participant import Participant
-from app.schemas.room import CreateRoomRequest
+from app.schemas.room import CreateRoomRequest, MessageResponse
+from app.schemas.room import RoomParticipantsResponse, RoomParticipantResponse
+
 
 ROOM_CODE_LENGTH = 8
 ROOM_CODE_ALPHABET = string.ascii_uppercase + string.digits
@@ -22,11 +25,13 @@ class RoomService:
     def __init__(self, db: AsyncSession):
         self.db = db
 
+
     async def _room_code_exists(self, room_code: str) -> bool:
         result = await self.db.execute(
             select(Room.id).where(Room.room_code == room_code)
         )
         return result.scalar_one_or_none() is not None
+
 
     async def _generate_unique_room_code(self) -> str:
         """
@@ -46,6 +51,7 @@ class RoomService:
             f"Failed to generate a unique room code after "
             f"{MAX_ROOM_CODE_ATTEMPTS} attempts."
         )
+
 
     async def create_room(
         self,
@@ -194,3 +200,111 @@ class RoomService:
             "participant_count": len(participants),
             "host_id": room.host_id,
         }
+    
+
+    async def leave_room(self, room_code: str, current_user: User, ) -> MessageResponse:
+        
+        room_result = await self.db.execute(
+            select(Room).where(Room.room_code == room_code)
+        )
+        room = room_result.scalar_one_or_none()
+
+        if room is None:
+            raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Room not found",
+        )
+
+        participant_result = await self.db.execute(
+            select(Participant).where(
+            Participant.room_id == room.id,
+            Participant.user_id == current_user.id,
+            )
+        )
+
+        participant = participant_result.scalar_one_or_none()
+
+        if participant is None:
+            raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="You are not a participant in this room",
+        )
+
+        await self.db.delete(participant)
+        await self.db.commit()
+
+        remaining_result = await self.db.execute(
+            select(Participant).where(
+            Participant.room_id == room.id
+            )
+        )
+        remaining_participants = remaining_result.scalars().all()
+
+        if len(remaining_participants) == 0:
+            await self.db.delete(room)
+            await self.db.commit()  
+        
+        return MessageResponse(
+            message="You have successfully left the room.",
+            room_code=room_code,
+            user_id=current_user.id
+        ) 
+    
+
+    async def get_room_participants(
+    self,
+    room_code: str,
+    current_user: User,
+    ) -> RoomParticipantsResponse:
+        """
+        Return all participants currently inside a room.
+        """
+        # Check whether room exists
+        room_result = await self.db.execute(
+            select(Room).where(Room.room_code == room_code)
+        )
+        room = room_result.scalar_one_or_none()
+        if room is None:
+            raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Room not found",
+        )
+
+        participant_result = await self.db.execute(
+            select(Participant).where(
+            Participant.room_id == room.id,
+            Participant.user_id == current_user.id,
+            )
+        )
+
+        participant = participant_result.scalar_one_or_none()
+        if participant is None:
+            raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You must join the room first",
+        )
+
+        # Fetch all participants with their usernames
+        result = await self.db.execute(
+        select(Participant, User)
+        .join(User, Participant.user_id == User.id)
+        .where(Participant.room_id == room.id)
+        )
+
+        rows = result.all()
+
+        participants = [
+            RoomParticipantResponse(
+            user_id=user.id,
+            username=user.username,
+            is_host=participant.is_host,
+            )
+            for participant, user in rows
+        ]
+        
+        return RoomParticipantsResponse(
+            room_code=room.room_code,
+            participant_count=len(participants),
+            participants=participants,
+        )
+

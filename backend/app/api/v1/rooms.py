@@ -11,8 +11,13 @@ from app.schemas.room import (
     CreateRoomRequest,
     RoomResponse,
     JoinRoomRequest,
-    ParticipantResponse
+    ParticipantResponse,
+    RoomDetailResponse,
+    LeaveRoomRequest,
+    MessageResponse,
+    RoomParticipantsResponse,
 )
+
 
 router = APIRouter(prefix="/api/v1/rooms", tags=["rooms"])
 
@@ -59,6 +64,7 @@ async def join_room(
 
     return participant
 
+
 @router.get(
     "/{room_code}",
     response_model=RoomDetailResponse
@@ -74,3 +80,47 @@ async def get_room(
     )
 
     return room
+
+
+@router.delete(
+    "/leave",
+    response_model=MessageResponse,
+    summary="Leave a coding room",
+)
+async def leave_room(
+    payload: LeaveRoomRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> MessageResponse:
+    """
+    Leave a collaborative coding room.
+    """
+
+    room_service = RoomService(db)
+
+    return await room_service.leave_room(
+        payload.room_code,
+        current_user,
+    )
+
+
+@router.get(
+    "/{room_code}/participants",
+    response_model=RoomParticipantsResponse,
+    summary="List room participants",
+)
+async def get_room_participants(
+    room_code: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> RoomParticipantsResponse:
+    """
+    Return all participants currently inside a room.
+    """
+
+    room_service = RoomService(db)
+
+    return await room_service.get_room_participants(
+    room_code,
+    current_user,
+    )
