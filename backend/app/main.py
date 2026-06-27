@@ -7,6 +7,11 @@ from app.db.base import Base
 
 from app.api.v1 import auth, rooms, users
 
+from fastapi import WebSocket
+
+from app.db.session import AsyncSessionLocal
+from app.websocket.handler import handler
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -30,3 +35,16 @@ app.include_router(rooms.router)
 @app.get("/")
 async def root():
     return {"message": "Backend is running 🚀"}
+
+
+@app.websocket("/ws/{room_code}")
+async def websocket_endpoint(
+    websocket: WebSocket,
+    room_code: str,
+):
+    async with AsyncSessionLocal() as db:
+        await handler.handle_connection(
+            websocket=websocket,
+            room_code=room_code,
+            db=db,
+        )
