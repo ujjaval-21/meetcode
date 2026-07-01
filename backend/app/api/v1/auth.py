@@ -12,7 +12,6 @@ from app.services.auth_service import AuthService
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 
-
 @router.post(
     "/signup",
     response_model=UserResponse,
@@ -33,7 +32,6 @@ async def signup(
     auth_service = AuthService(db)
     new_user = await auth_service.signup(payload)
     return new_user
-
 
 @router.post(
     "/login",

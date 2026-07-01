@@ -1,18 +1,20 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { signup } from "../services/auth";
+import { AxiosError } from "axios";
 
-type FormField = "username" | "email" | "password" | "confirmPassword";
+type FormField = "username" | "user_id" | "password" | "confirmPassword";
 
 interface SignupFormState {
   username: string;
-  email: string;
+  user_id: string;
   password: string;
   confirmPassword: string;
 }
 
 interface FieldError {
   username?: string;
-  email?: string;
+  user_id?: string;
   password?: string;
   confirmPassword?: string;
 }
@@ -28,16 +30,17 @@ function validate(fields: SignupFormState): FieldError {
     errors.username = "Only letters, numbers, and underscores allowed.";
   }
 
-  if (!fields.email.trim()) {
-    errors.email = "Email is required.";
-  } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(fields.email)) {
-    errors.email = "Enter a valid email address.";
+  if (!fields.user_id.trim()) {
+    errors.user_id = "User ID is required.";
+  } else if (fields.user_id.length < 3) {
+    errors.user_id = "User ID must be at least 3 characters.";
   }
 
   if (!fields.password) {
     errors.password = "Password is required.";
-  } else if (fields.password.length < 6) {
-    errors.password = "Password must be at least 6 characters.";
+  } else if (fields.password.length < 8) {
+    errors.password = "Password must be at least 8 characters.";
+
   }
 
   if (!fields.confirmPassword) {
@@ -89,7 +92,7 @@ function PasswordStrengthBar({ password }: { password: string }) {
 export default function SignupPage() {
   const [form, setForm] = useState<SignupFormState>({
     username: "",
-    email: "",
+    user_id: "",
     password: "",
     confirmPassword: "",
   });
@@ -97,6 +100,8 @@ export default function SignupPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const navigate = useNavigate();
+  const [serverError, setServerError] = useState("");
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [termsError, setTermsError] = useState("");
 
@@ -121,8 +126,35 @@ export default function SignupPage() {
       return;
     }
     setIsSubmitting(true);
-    // Connect your auth/registration logic here
-    setIsSubmitting(false);
+    setServerError("");
+
+    try {
+      await signup({
+        username: form.username,
+          user_id: form.user_id,
+        password: form.password,
+      });
+
+      navigate("/login", {
+        state: {
+          success: "Account created successfully!"
+        }
+      });
+
+    } catch (error) {
+
+      if (error instanceof AxiosError) {
+        setServerError(
+          error.response?.data?.detail ??
+          "Unable to create account."
+        );
+      } else {
+          setServerError("Something went wrong.");
+      }
+
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (
@@ -205,32 +237,32 @@ export default function SignupPage() {
                 )}
               </div>
 
-              {/* Email */}
+              {/* user_id */}
               <div className="flex flex-col gap-1.5">
-                <label htmlFor="email" className="text-sm font-medium text-zinc-300">
-                  Email
+                <label htmlFor="user_id" className="text-sm font-medium text-zinc-300">
+                  User ID
                 </label>
                 <input
-                  id="email"
-                  name="email"
-                  type="email"
-                  autoComplete="email"
-                  placeholder="you@example.com"
-                  value={form.email}
+                  id="user_id"
+                  name="user_id"
+                  type="text"
+                  autoComplete="user_id"
+                  placeholder="your_user_id"
+                  value={form.user_id}
                   onChange={handleChange}
-                  aria-invalid={!!errors.email}
-                  aria-describedby={errors.email ? "email-error" : undefined}
+                  aria-invalid={!!errors.user_id}
+                  aria-describedby={errors.user_id ? "user_id-error" : undefined}
                   className={[
                     "w-full rounded-lg bg-zinc-800 border px-3.5 py-2.5 text-sm text-white placeholder-zinc-500",
                     "focus:outline-none focus:ring-2 focus:ring-lime-500/60 focus:border-lime-500 transition-colors",
-                    errors.email
+                    errors.user_id
                       ? "border-red-500"
                       : "border-zinc-700 hover:border-zinc-600",
                   ].join(" ")}
                 />
-                {errors.email && (
-                  <p id="email-error" role="alert" className="text-xs text-red-400 mt-0.5">
-                    {errors.email}
+                {errors.user_id && (
+                  <p id="user_id-error" role="alert" className="text-xs text-red-400 mt-0.5">
+                    {errors.user_id}
                   </p>
                 )}
               </div>
@@ -385,6 +417,12 @@ export default function SignupPage() {
                   </p>
                 )}
               </div>
+
+              {serverError && (
+                <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-400">
+                  {serverError}
+                </div>
+              )}
 
               {/* Submit */}
               <button

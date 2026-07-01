@@ -1,5 +1,8 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { login } from "../services/auth";
+import { useAuth } from "../hooks/useAuth";
+import { AxiosError } from "axios";
 
 type FormField = "identifier" | "password";
 
@@ -20,8 +23,8 @@ function validate(fields: LoginFormState): FieldError {
   }
   if (!fields.password) {
     errors.password = "Password is required.";
-  } else if (fields.password.length < 6) {
-    errors.password = "Password must be at least 6 characters.";
+  } else if (fields.password.length < 8) {
+    errors.password = "Password must be at least 8 characters.";
   }
   return errors;
 }
@@ -34,6 +37,9 @@ export default function LoginPage() {
   const [errors, setErrors] = useState<FieldError>({});
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const navigate = useNavigate();
+  const auth = useAuth();
+  const [serverError, setServerError] = useState("");
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
     const { name, value } = e.target;
@@ -51,8 +57,30 @@ export default function LoginPage() {
       return;
     }
     setIsSubmitting(true);
-    // Connect your auth logic here
+    try {
+      await login({
+        username: form.identifier,
+        password: form.password,
+      });
+
+      await auth.login();
+
+      navigate("/dashboard");
+
+    } catch (error) {
+
+      if (error instanceof AxiosError) {
+        setServerError(
+            error.response?.data?.detail ||
+            "Invalid username or password."
+        );
+      } else {
+        setServerError("Something went wrong.");
+      }
+
+    } finally {
     setIsSubmitting(false);
+  }
   }
 
   return (
@@ -212,6 +240,12 @@ export default function LoginPage() {
                   </p>
                 )}
               </div>
+
+              {serverError && (
+                <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-400">
+                {serverError}
+                </div>
+              )}
 
               {/* Submit */}
               <button

@@ -1,4 +1,6 @@
 import { Routes, Route } from "react-router-dom";
+import ProtectedRoute from "../components/auth/ProtectedRoute";
+import PublicRoute from "../components/auth/PublicRoute";
 
 import LandingPage from "../pages/LandingPage";
 import LoginPage from "../pages/LoginPage";
@@ -13,14 +15,53 @@ import CodingRoom from "../pages/EditorRoomPage";
 export default function AppRoutes() {
   return (
     <Routes>
-      <Route path="/" element={<LandingPage />} />
-      <Route path="/dashboard" element={<Dashboard />} />
-      <Route path="/login" element={<LoginPage />} />
-      <Route path="/signup" element={<SignupPage />} />
-      <Route path="/create-room" element={<CreateRoomPage />} />
-      <Route path="/join-room" element={<JoinRoomPage />} />
-      <Route path="/room/:id" element={<CodingRoom />} />
+      {/* Public Routes */}
+      <Route path="/" element={
+        <PublicRoute>
+          <LandingPage />
+        </PublicRoute>
+      }/>
+
+      <Route path="/login" element={
+        <PublicRoute>
+          <LoginPage />
+        </PublicRoute>
+      }/>
+
+      <Route path="/signup" element={
+        <PublicRoute>
+          <SignupPage />
+        </PublicRoute>
+      }/>
+
+      {/* Protected Routes */}
+      <Route path="/dashboard" element={
+        <ProtectedRoute>
+          <Dashboard />
+        </ProtectedRoute>
+      }/>
+
+      <Route path="/create-room" element={
+        <ProtectedRoute>
+          <CreateRoomPage />
+        </ProtectedRoute>
+      }/>
+
+      <Route path="/join-room" element={
+        <ProtectedRoute>
+          <JoinRoomPage />
+        </ProtectedRoute>
+      }/>
+ 
+
+      <Route path="/room/:id" element={
+        <ProtectedRoute>
+          <CodingRoom />
+        </ProtectedRoute>
+      } />
+
       <Route path="*" element={<NotFoundPage />} />
+
     </Routes>
   );
 }
