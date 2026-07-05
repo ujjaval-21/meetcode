@@ -1,4 +1,7 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { joinRoom } from "../services/room";
+import { AxiosError } from "axios";
 import { Link } from "react-router-dom";
 import {
   Code2,
@@ -146,6 +149,8 @@ export default function JoinRoomPage() {
   const [errors, setErrors] = useState<FormErrors>({});
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const navigate = useNavigate();
+  const [serverError, setServerError] = useState("");
 
   function handleChange(field: keyof FormState) {
     return (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -163,14 +168,34 @@ export default function JoinRoomPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+
     const validationErrors = validate(form);
+
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
       return;
     }
+
+    setServerError("");
     setIsSubmitting(true);
-    // Connect join room logic here
-    setIsSubmitting(false);
+
+    try {
+      await joinRoom({
+        room_code: form.roomId.trim().toUpperCase(),
+      });
+
+      navigate(`/room/${form.roomId.trim().toUpperCase()}`);
+    } catch (error) {
+      if (error instanceof AxiosError) {
+        setServerError(
+          error.response?.data?.detail ?? "Unable to join room."
+        );
+      } else {
+        setServerError("Something went wrong.");
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (
@@ -242,6 +267,12 @@ export default function JoinRoomPage() {
                       <RecentPill key={id} id={id} onClick={handleRecentPick} />
                     ))}
                   </div>
+                </div>
+              )}
+
+              {serverError && (
+                <div className="rounded-xl border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+                  {serverError}
                 </div>
               )}
 

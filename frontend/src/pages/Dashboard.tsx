@@ -1,4 +1,7 @@
-import { useState } from "react";
+import React from "react";
+import { useAuth } from "../hooks/useAuth";
+import { useNavigate } from "react-router-dom";
+
 import {
   Code2,
   Bell,
@@ -10,7 +13,6 @@ import {
   MessageSquare,
   Users,
   ChevronRight,
-  Hash,
   Wifi,
 } from "lucide-react";
 
@@ -25,6 +27,7 @@ interface FeaturePill {
 }
 
 // ─── Data ─────────────────────────────────────────────────────────────────────
+
 
 const FEATURE_PILLS: FeaturePill[] = [
   {
@@ -81,14 +84,21 @@ function NavIconButton({
   );
 }
 
-function UserAvatar() {
+function UserAvatar({username,}: {
+  username: string;
+}) {const initials = username
+  .split(" ")
+  .map((word) => word[0])
+  .join("")
+  .slice(0, 2)
+  .toUpperCase();
   return (
     <button
       aria-label="User menu"
       className="relative w-9 h-9 rounded-xl overflow-hidden ring-2 ring-slate-700 hover:ring-violet-500/60 transition-all duration-200"
     >
       <div className="w-full h-full bg-gradient-to-br from-violet-600 to-blue-600 flex items-center justify-center">
-        <span className="text-xs font-bold text-white">AK</span>
+        <span className="text-xs font-bold text-white">{initials}</span>
       </div>
       <span className="absolute bottom-0.5 right-0.5 w-2 h-2 rounded-full bg-emerald-400 ring-1 ring-slate-950" />
     </button>
@@ -174,20 +184,7 @@ function RoomCard({ variant, onAction }: RoomCardProps) {
         </p>
       </div>
 
-      {/* Input for join */}
-      {!isCreate && (
-        <div className="mb-5">
-          <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-slate-800/70 border border-slate-700/60 focus-within:border-blue-500/50 transition-colors">
-            <Hash className="w-4 h-4 text-slate-500 shrink-0" />
-            <input
-              type="text"
-              placeholder="Enter room code…"
-              onClick={(e) => e.stopPropagation()}
-              className="flex-1 bg-transparent text-sm text-white placeholder-slate-500 outline-none font-mono"
-            />
-          </div>
-        </div>
-      )}
+      {/*  for join */}
 
       {/* Button */}
       <button
@@ -289,7 +286,8 @@ function RecentRooms() {
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function Dashboard() {
-  const [, setModalOpen] = useState<"create" | "join" | null>(null);
+   const navigate = useNavigate();
+   const { user } = useAuth();
 
   return (
     <div className="min-h-screen bg-slate-950 text-white flex flex-col">
@@ -321,7 +319,7 @@ export default function Dashboard() {
             <NavIconButton icon={<Bell className="w-4.5 h-4.5" />} badge label="Notifications" />
             <NavIconButton icon={<Settings className="w-4.5 h-4.5" />} label="Settings" />
             <div className="w-px h-6 bg-slate-800 mx-1.5" />
-            <UserAvatar />
+            <UserAvatar username={user?.username ?? "User"} />
           </div>
         </div>
       </header>
@@ -335,15 +333,15 @@ export default function Dashboard() {
             <ActiveDot />
           </div>
           <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white mb-2">
-            Welcome back, <span className="bg-gradient-to-r from-violet-400 to-blue-400 bg-clip-text text-transparent">Alex</span>
+            Welcome back, <span className="bg-gradient-to-r from-violet-400 to-blue-400 bg-clip-text text-transparent">{user?.username}</span>
           </h1>
           <p className="text-slate-400 text-sm">What are you building today?</p>
         </div>
 
         {/* ── Two main cards ── */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 w-full max-w-2xl">
-          <RoomCard variant="create" onAction={() => setModalOpen("create")} />
-          <RoomCard variant="join" onAction={() => setModalOpen("join")} />
+          <RoomCard variant="create" onAction={() => navigate("/create-room")} />
+          <RoomCard variant="join" onAction={() => navigate("/join-room")}/>
         </div>
 
         {/* ── Feature pills ── */}

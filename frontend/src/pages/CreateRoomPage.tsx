@@ -1,104 +1,34 @@
-import { useState, useCallback } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
+import ToggleSwitch from "../components/ui/ToggleSwitch";
+import { createRoom } from "../services/room";
+import { useNavigate } from "react-router-dom";
 import {
   Code2,
-  RefreshCw,
-  Copy,
-  Check,
   Lock,
   Unlock,
   ArrowLeft,
   LogIn,
   Eye,
   EyeOff,
-  Hash,
   Info,
 } from "lucide-react";
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-const ADJECTIVES = [
-  "swift", "bold", "calm", "dark", "epic", "fast", "glad", "huge",
-  "keen", "lazy", "mild", "neat", "odd", "pure", "rich", "safe",
-  "tiny", "vast", "warm", "zany",
-];
-
-const NOUNS = [
-  "algo", "byte", "code", "data", "exec", "fork", "grep", "hook",
-  "iter", "java", "kern", "loop", "main", "node", "pipe", "quit",
-  "root", "sudo", "type", "unit",
-];
-
-function generateRoomId(): string {
-  const adj = ADJECTIVES[Math.floor(Math.random() * ADJECTIVES.length)];
-  const noun = NOUNS[Math.floor(Math.random() * NOUNS.length)];
-  const num = Math.floor(1000 + Math.random() * 9000);
-  return `${adj}-${noun}-${num}`;
-}
-
-// ─── Sub-components ───────────────────────────────────────────────────────────
-
-function ToggleSwitch({
-  enabled,
-  onToggle,
-  label,
-}: {
-  enabled: boolean;
-  onToggle: () => void;
-  label: string;
-}) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={enabled}
-      aria-label={label}
-      onClick={onToggle}
-      className={[
-        "relative inline-flex h-6 w-11 shrink-0 items-center rounded-full border-2 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:ring-offset-2 focus:ring-offset-slate-900",
-        enabled
-          ? "bg-gradient-to-r from-violet-600 to-blue-600 border-transparent"
-          : "bg-slate-700 border-slate-600",
-      ].join(" ")}
-    >
-      <span
-        className={[
-          "inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform duration-300",
-          enabled ? "translate-x-5" : "translate-x-0.5",
-        ].join(" ")}
-      />
-    </button>
-  );
-}
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function CreateRoomPage() {
-  const [roomId, setRoomId] = useState<string>(() => generateRoomId());
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
   const [isPrivate, setIsPrivate] = useState(false);
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [copied, setCopied] = useState(false);
-  const [spinning, setSpinning] = useState(false);
   const [passwordError, setPasswordError] = useState("");
+  const [maxParticipants,setMaxParticipants]=useState(10);
+  const navigate = useNavigate();
 
-  const handleGenerate = useCallback(() => {
-    setSpinning(true);
-    setTimeout(() => setSpinning(false), 400);
-    setRoomId(generateRoomId());
-  }, []);
 
-  const handleCopy = useCallback(async () => {
-    try {
-      await navigator.clipboard.writeText(roomId);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      // fallback: no-op
-    }
-  }, [roomId]);
-
-  const handleTogglePrivate = useCallback(() => {
+  function handleTogglePrivate() {
     setIsPrivate((v) => {
       if (v) {
         setPassword("");
@@ -106,23 +36,47 @@ export default function CreateRoomPage() {
       }
       return !v;
     });
-  }, []);
+  }
 
   const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setPassword(e.target.value);
-    if (passwordError && e.target.value.length >= 4) {
+    if (passwordError && e.target.value.length >= 6) {
       setPasswordError("");
     }
   };
 
-  const handleEnterRoom = () => {
-    if (isPrivate && password.length < 4) {
-      setPasswordError("Password must be at least 4 characters.");
-      return;
-    }
-    // Connect room creation logic here
-  };
+const handleEnterRoom = async () => {
 
+  if (!title.trim()) {
+    alert("Room name is required.");
+    return;
+  }
+
+  if (isPrivate && password.length < 6) {
+    setPasswordError("Password must be at least 6 characters.");
+    return;
+  }
+
+  try {
+
+    const room = await createRoom({
+      title,
+      description,
+      is_private: isPrivate,
+      max_participants: maxParticipants,
+    });
+
+    navigate(`/room/${room.room_code}`);
+
+  } catch (error) {
+
+    console.error(error);
+    alert("Unable to create room.");
+
+  }
+};
+
+  
   return (
     <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center px-4 py-12">
       {/* Grid background */}
@@ -167,58 +121,72 @@ export default function CreateRoomPage() {
 
           <div className="flex flex-col gap-6">
 
-            {/* Room ID */}
+            {/* Room Name */}
             <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium text-slate-300 flex items-center gap-1.5">
-                <Hash className="w-3.5 h-3.5 text-slate-500" />
-                Room ID
+              <label
+                htmlFor="title"
+                className="text-sm font-medium text-slate-300"
+              >
+                Room Name
               </label>
-              <div className="flex items-center gap-2">
-                <div className="flex-1 flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-slate-800/80 border border-slate-700 font-mono text-sm text-white overflow-hidden">
-                  <span className="truncate tracking-wide">{roomId}</span>
-                </div>
 
-                {/* Regenerate */}
-                <button
-                  type="button"
-                  onClick={handleGenerate}
-                  aria-label="Generate new room ID"
-                  title="Generate new ID"
-                  className="w-10 h-10 shrink-0 rounded-xl bg-slate-800 border border-slate-700 hover:border-slate-600 hover:bg-slate-700 text-slate-400 hover:text-white transition-all duration-200 flex items-center justify-center"
-                >
-                  <RefreshCw
-                    className={[
-                      "w-4 h-4 transition-transform duration-400",
-                      spinning ? "animate-spin" : "",
-                    ].join(" ")}
-                  />
-                </button>
+              <input
+                id="title"
+                type="text"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="DSA Practice"
+                className="
+                  w-full
+                  rounded-xl
+                  bg-slate-800/80
+                  border
+                  border-slate-700
+                  px-3.5
+                  py-2.5
+                  text-white
+                  placeholder-slate-500
+                  focus:outline-none
+                  focus:ring-2
+                  focus:ring-violet-500/50
+                "
+              />
+            </div>
+          
+            {/* Room Description */}
+            <div className="flex flex-col gap-2">
+              <label
+                htmlFor="description"
+                className="text-sm font-medium text-slate-300"
+              >
+                Description
+                <span className="text-slate-500 text-xs ml-2">
+                  (Optional)
+                </span>
+              </label>
 
-                {/* Copy */}
-                <button
-                  type="button"
-                  onClick={handleCopy}
-                  aria-label="Copy room ID"
-                  title={copied ? "Copied!" : "Copy ID"}
-                  className={[
-                    "w-10 h-10 shrink-0 rounded-xl border transition-all duration-200 flex items-center justify-center",
-                    copied
-                      ? "bg-emerald-500/10 border-emerald-500/40 text-emerald-400"
-                      : "bg-slate-800 border-slate-700 hover:border-slate-600 hover:bg-slate-700 text-slate-400 hover:text-white",
-                  ].join(" ")}
-                >
-                  {copied ? (
-                    <Check className="w-4 h-4" />
-                  ) : (
-                    <Copy className="w-4 h-4" />
-                  )}
-                </button>
-              </div>
-              {copied && (
-                <p className="text-xs text-emerald-400 flex items-center gap-1">
-                  <Check className="w-3 h-3" /> Copied to clipboard
-                </p>
-              )}
+              <textarea
+                id="description"
+                rows={3}
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Describe this room..."
+                className="
+                  w-full
+                  rounded-xl
+                  bg-slate-800/80
+                  border
+                  border-slate-700
+                  px-3.5
+                  py-2.5
+                  text-white
+                  placeholder-slate-500
+                  resize-none
+                  focus:outline-none
+                  focus:ring-2
+                  focus:ring-violet-500/50
+                "
+              />
             </div>
 
             {/* Divider */}
@@ -313,6 +281,48 @@ export default function CreateRoomPage() {
               </div>
             </div>
 
+
+            {/* MAX Participants */}
+
+            <div className="flex flex-col gap-2">
+              <label
+                htmlFor="participants"
+                className="text-sm font-medium text-slate-300"
+              >
+                Maximum Participants
+              </label>
+
+              <select
+                id="participants"
+                value={maxParticipants}
+                onChange={(e) =>
+                  setMaxParticipants(Number(e.target.value))
+                }
+                className="
+                  w-full
+                  rounded-xl
+                  bg-slate-800
+                  border
+                  border-slate-700
+                  px-3.5
+                  py-2.5
+                  text-white
+                  focus:outline-none
+                  focus:ring-2
+                  focus:ring-violet-500/50
+                "
+              >
+                <option value={2}>2</option>
+                <option value={4}>4</option>
+                <option value={6}>6</option>
+                <option value={8}>8</option>
+                <option value={10}>10</option>
+                <option value={20}>20</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+              </select>
+            </div>
+
             {/* Divider */}
             <div className="h-px bg-slate-800" />
 
@@ -324,7 +334,7 @@ export default function CreateRoomPage() {
                 className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-gradient-to-r from-violet-600 to-blue-600 hover:from-violet-500 hover:to-blue-500 text-white font-semibold text-sm shadow-lg shadow-violet-500/20 hover:shadow-violet-500/35 transition-all duration-200 group"
               >
                 <LogIn className="w-4 h-4" />
-                Enter Room
+                Create & Enter Room
               </button>
 
               <Link
