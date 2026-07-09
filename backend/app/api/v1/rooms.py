@@ -124,3 +124,4 @@ async def get_room_participants(
     room_code,
     current_user,
     )
+

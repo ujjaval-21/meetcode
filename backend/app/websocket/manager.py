@@ -20,12 +20,20 @@ class ConnectionManager:
         user_id: UUID,
         websocket: WebSocket,
     ) -> None:
+        
         """
         Accept a WebSocket connection and register it.
         """
         await websocket.accept()
 
         self.active_connections[room_code][user_id] = websocket
+
+        print("\n===== CONNECT =====")
+        print("Room:", room_code)
+        print("User:", user_id)
+        print("Connections:", len(self.active_connections[room_code]))
+
+
 
     def disconnect(
         self,
@@ -55,9 +63,14 @@ class ConnectionManager:
         room_code: str,
         message: dict,
     ) -> None:
+        print("\n===== BROADCAST =====")
+        print("Room:", room_code)
+        print("Connections:", len(self.active_connections[room_code]))
+        print("Message:", message)
         """
         Broadcast a JSON message to everyone in the room.
         """
+
         if room_code not in self.active_connections:
             return
 

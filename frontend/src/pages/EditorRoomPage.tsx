@@ -1,4 +1,21 @@
-import { useState, useRef, useCallback } from "react";
+import {useState, useRef, useCallback, useEffect} from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import { useRoom } from "../hooks/useRoom";
+import {
+  getRoom,
+  getParticipants,
+  leaveRoom,
+} from "../services/room";
+
+import { getToken } from "../services/storage";
+
+import ConfirmDialog from "../components/ui/ConfirmDialog";
+
+import type {
+  RoomDetailResponse,
+  RoomParticipant,
+} from "../services/room";
+
 import {
   Code2,
   Wifi,
@@ -21,16 +38,6 @@ import {
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-interface Member {
-  id: string;
-  initials: string;
-  name: string;
-  role: "host" | "member";
-  color: string;
-  muted: boolean;
-  cameraOff: boolean;
-  isTyping?: boolean;
-}
 
 interface ChatMessage {
   id: string;
@@ -46,12 +53,6 @@ type Language = "TypeScript" | "Python" | "Go" | "Rust" | "Java" | "C++" | "Java
 
 // ─── Static data ──────────────────────────────────────────────────────────────
 
-const MEMBERS: Member[] = [
-  { id: "1", initials: "AK", name: "Alex Kim", role: "host", color: "from-violet-500 to-purple-600", muted: false, cameraOff: false },
-  { id: "2", initials: "SR", name: "Sara Ryo", role: "member", color: "from-blue-500 to-cyan-500", muted: true, cameraOff: false, isTyping: true },
-  { id: "3", initials: "MJ", name: "Marco J", role: "member", color: "from-emerald-500 to-teal-500", muted: false, cameraOff: true },
-  { id: "4", initials: "PL", name: "Priya L", role: "member", color: "from-rose-500 to-pink-500", muted: true, cameraOff: true },
-];
 
 const INITIAL_MESSAGES: ChatMessage[] = [
   { id: "1", authorId: "1", authorName: "Alex Kim", authorInitials: "AK", authorColor: "from-violet-500 to-purple-600", text: "Hey everyone! Let's tackle the two-sum problem first.", time: "10:41 AM" },
@@ -116,49 +117,34 @@ function LiveBadge() {
   );
 }
 
-function MemberCard({ member }: { member: Member }) {
+function MemberCard({participant,}: {participant: RoomParticipant;}) {
+  const initials = participant.username
+    .split(" ")
+    .map((part) => part[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+
   return (
-    <div className="flex items-center justify-between px-3 py-2.5 rounded-xl bg-slate-800/50 border border-slate-700/60 hover:border-slate-600/60 transition-colors group">
-      <div className="flex items-center gap-2.5">
-        <div className="relative">
-          <Avatar initials={member.initials} color={member.color} size="md" />
-          {!member.muted && (
-            <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-400 border-2 border-slate-900 flex items-center justify-center">
-              <Mic className="w-1.5 h-1.5 text-slate-900" />
-            </span>
-          )}
-        </div>
+    <div className="flex items-center justify-between px-3 py-2.5 rounded-xl bg-slate-800/50 border border-slate-700/60 hover:border-slate-600/60 transition-colors">
+      <div className="flex items-center gap-3">
+        <Avatar
+          initials={initials}
+          color="from-violet-500 to-blue-500"
+        />
         <div>
-          <div className="flex items-center gap-1.5">
-            <span className="text-sm font-medium text-white leading-none">{member.name}</span>
-            {member.role === "host" && (
+          <div className="flex items-center gap-2">
+            <span className="text-white font-medium">
+              {participant.username}
+            </span>
+            {participant.is_host && (
               <Crown className="w-3 h-3 text-yellow-400" />
             )}
           </div>
-          {member.isTyping ? (
-            <span className="text-xs text-violet-400 flex items-center gap-1">
-              <span className="flex gap-0.5">
-                {[0, 1, 2].map((i) => (
-                  <span
-                    key={i}
-                    className="w-1 h-1 rounded-full bg-violet-400 animate-bounce"
-                    style={{ animationDelay: `${i * 0.15}s` }}
-                  />
-                ))}
-              </span>
-              editing…
-            </span>
-          ) : (
-            <span className="text-xs text-slate-500">
-              {member.muted ? "Muted" : "Speaking"}
-              {member.cameraOff ? " · Cam off" : ""}
-            </span>
-          )}
+          <span className="text-xs text-slate-500">
+            {participant.is_host ? "Host" : "Participant"}
+          </span>
         </div>
-      </div>
-      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-        {member.muted && <MicOff className="w-3.5 h-3.5 text-slate-500" />}
-        {member.cameraOff && <VideoOff className="w-3.5 h-3.5 text-slate-500" />}
       </div>
     </div>
   );
@@ -342,11 +328,20 @@ function renderLine(line: string) {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-const ROOM_ID = "swift-algo-4821";
 const MIN_SIDEBAR = 280;
 const MAX_SIDEBAR = 480;
 
 export default function CodingRoom() {
+  const { roomCode } = useParams();
+  const {
+  room,
+  setRoom,
+  participants,
+  refreshParticipants,
+  connectSocket,
+  disconnectSocket,
+  } = useRoom();
+  const [loading, setLoading] = useState(true);
   const [language, setLanguage] = useState<Language>("TypeScript");
   const [langOpen, setLangOpen] = useState(false);
   const [muted, setMuted] = useState(false);
@@ -356,6 +351,10 @@ export default function CodingRoom() {
   const [messages, setMessages] = useState<ChatMessage[]>(INITIAL_MESSAGES);
   const [sidebarWidth, setSidebarWidth] = useState(300);
   const [isRunning, setIsRunning] = useState(false);
+  const navigate = useNavigate();
+
+  const [showLeaveDialog, setShowLeaveDialog] = useState(false);
+  const [leaving, setLeaving] = useState(false);
 
   const isDragging = useRef(false);
   const dragStartX = useRef(0);
@@ -402,6 +401,72 @@ export default function CodingRoom() {
     setTimeout(() => setIsRunning(false), 1800);
   }
 
+
+  useEffect(() => {
+    async function loadRoom() {
+      if (!roomCode) return;
+
+      try {
+        const roomData = await getRoom(roomCode);
+
+        setRoom(roomData);
+
+        await refreshParticipants(roomCode);
+
+        const token = getToken();
+        if (token) {
+          connectSocket(roomCode, token);
+        }
+      } catch (error) {
+        console.error(error);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadRoom();
+
+    return () => {
+      disconnectSocket();
+    };
+  }, [roomCode]);
+
+
+  if (loading) {
+    return (
+      <div className="h-screen flex items-center justify-center bg-slate-950 text-white">
+        Loading room...
+      </div>
+    );
+  }
+
+  if (!room) {
+    return (
+      <div className="h-screen flex items-center justify-center bg-slate-950 text-red-400">
+        Room not found.
+      </div>
+    );
+  }
+
+
+  async function handleLeaveRoom() {
+    if (!room) return;
+
+    try {
+      setLeaving(true);
+
+      await leaveRoom(room.room_code);
+
+      navigate("/dashboard");
+    } catch (err) {
+      console.error(err);
+      alert("Failed to leave room.");
+    } finally {
+      setLeaving(false);
+      setShowLeaveDialog(false);
+    }
+  }
+
   return (
     <div className="h-screen flex flex-col bg-slate-950 text-white overflow-hidden">
 
@@ -418,7 +483,7 @@ export default function CodingRoom() {
           <div className="h-5 w-px bg-slate-800" />
           <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-800">
             <Hash className="w-3 h-3 text-slate-500" />
-            <span className="text-xs font-mono text-slate-300">{ROOM_ID}</span>
+            <span className="text-xs font-mono text-slate-300">{room.room_code}</span>
           </div>
           <LiveBadge />
         </div>
@@ -476,15 +541,35 @@ export default function CodingRoom() {
         <div className="flex items-center gap-3">
           {/* Member avatars */}
           <div className="hidden sm:flex -space-x-2">
-            {MEMBERS.map((m) => (
-              <div key={m.id} title={m.name} className="ring-2 ring-slate-950 rounded-xl">
-                <Avatar initials={m.initials} color={m.color} size="sm" />
-              </div>
-            ))}
+            {participants.map((participant) => {
+              const initials = participant.username
+                .split(" ")
+                .map((word) => word[0])
+                .join("")
+                .slice(0, 2)
+                .toUpperCase();
+                        
+              return (
+                <div
+                  key={participant.user_id}
+                  title={participant.username}
+                  className="ring-2 ring-slate-950 rounded-xl"
+                >
+                  <Avatar
+                    initials={initials}
+                    color="from-violet-500 to-blue-500"
+                    size="sm"
+                  />
+                </div>
+              );
+            })}
           </div>
           <div className="h-5 w-px bg-slate-800 hidden sm:block" />
           {/* Leave */}
-          <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500/10 border border-red-500/20 hover:bg-red-500/20 hover:border-red-500/40 text-red-400 text-xs font-semibold transition-all duration-200">
+          <button
+            onClick={() => setShowLeaveDialog(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500/10 border border-red-500/20 hover:bg-red-500/20 hover:border-red-500/40 text-red-400 text-xs font-semibold transition-all duration-200"
+          >
             <LogOut className="w-3.5 h-3.5" />
             <span className="hidden sm:block">Leave</span>
           </button>
@@ -517,11 +602,14 @@ export default function CodingRoom() {
               <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-widest">
                 Members
               </h2>
-              <span className="text-xs text-slate-600">{MEMBERS.length}/8</span>
+              <span className="text-xs text-slate-600">{participants.length}/{room.max_participants}</span>
             </div>
             <div className="flex flex-col gap-2">
-              {MEMBERS.map((m) => (
-                <MemberCard key={m.id} member={m} />
+              {participants.map((participant) => (
+                <MemberCard
+                  key={participant.user_id}
+                  participant={participant}
+                />
               ))}
             </div>
           </div>
@@ -616,6 +704,19 @@ export default function CodingRoom() {
           </div>
         </aside>
       </div>
+      <ConfirmDialog
+        open={showLeaveDialog}
+        title="Leave Room"
+        message="Are you sure you want to leave this room?"
+        confirmText={leaving ? "Leaving..." : "Leave"}
+        cancelText="Cancel"
+        onCancel={() => {
+          if (!leaving) {
+            setShowLeaveDialog(false);
+          }
+        }}
+        onConfirm={handleLeaveRoom}
+      />
     </div>
   );
 }

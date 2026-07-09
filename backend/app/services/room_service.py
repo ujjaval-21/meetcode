@@ -105,7 +105,8 @@ class RoomService:
             "Failed to create room due to repeated room_code collisions."
         )
     
-    
+
+
     async def join_room(
         self,
         room_code: str,

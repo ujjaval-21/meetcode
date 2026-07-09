@@ -1,6 +1,7 @@
 import { Routes, Route } from "react-router-dom";
 import ProtectedRoute from "../components/auth/ProtectedRoute";
 import PublicRoute from "../components/auth/PublicRoute";
+import { RoomProvider } from "../context/RoomContext";
 
 import LandingPage from "../pages/LandingPage";
 import LoginPage from "../pages/LoginPage";
@@ -54,11 +55,13 @@ export default function AppRoutes() {
       }/>
  
 
-      <Route path="/room/:id" element={
+      <Route path="/room/:roomCode" element={
         <ProtectedRoute>
-          <CodingRoom />
+          <RoomProvider>
+            <CodingRoom />
+          </RoomProvider>
         </ProtectedRoute>
-      } />
+      }/>
 
       <Route path="*" element={<NotFoundPage />} />
 

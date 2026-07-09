@@ -1,6 +1,5 @@
 from enum import StrEnum
 
-
 class WebSocketEvent(StrEnum):
     """
     Supported WebSocket event types.
@@ -29,3 +28,5 @@ class WebSocketEvent(StrEnum):
 
     # Errors
     ERROR = "error"
+
+    
