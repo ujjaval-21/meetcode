@@ -74,20 +74,20 @@ export function RoomProvider({
     roomCode: string,
     token: string
   ) {
-    roomSocket.connect(
-      roomCode,
-      token,
-      async (message) => {
-        console.log("WS:", message);
+    roomSocket.connect(roomCode, token);
 
-        if (
-          message.type === "user_joined" ||
-          message.type === "user_left"
-        ) {
-          await refreshParticipants(roomCode);
-        }
+    const handleMessage = async (message: any) => {
+      console.log("WS:", message);
+    
+      if (
+        message.type === "user_joined" ||
+        message.type === "user_left"
+      ) {
+        await refreshParticipants(roomCode);
       }
-    );
+    };
+
+    roomSocket.addListener(handleMessage);
   }
 
   function disconnectSocket() {

@@ -45,12 +45,23 @@ class WebSocketHandler:
 
             while True:
                 data = await websocket.receive_json()
+                print("Received:", data)
+                message_type = data.get("type")
 
-                # Temporary: broadcast every message
-                await manager.broadcast(
-                    room.room_code,
-                    data,
-                )
+                if message_type == WebSocketEvent.CODE_CHANGE:
+                    await manager.broadcast(
+                        room.room_code,
+                        {
+                            "type": WebSocketEvent.CODE_CHANGE,
+                            "code": data.get("code"),
+                            "language": data.get("language"),
+                        },
+                    )            
+                else:
+                    await manager.broadcast(
+                        room.room_code,
+                        data,
+                    )
 
         except WebSocketDisconnect:
 

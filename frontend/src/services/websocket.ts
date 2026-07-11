@@ -1,11 +1,16 @@
 export class RoomSocket {
   private socket: WebSocket | null = null;
 
-  connect(
-    roomCode: string,
-    token: string,
-    onMessage: (data: any) => void
-  ) {
+  private listeners: Array<(data: any) => void> = [];
+
+  connect(roomCode: string, token: string) {
+    if (
+      this.socket &&
+      this.socket.readyState === WebSocket.OPEN
+    ) {
+      return;
+    }
+
     this.socket = new WebSocket(
       `ws://localhost:8000/ws/${roomCode}?token=${token}`
     );
@@ -16,7 +21,10 @@ export class RoomSocket {
 
     this.socket.onmessage = (event) => {
       const data = JSON.parse(event.data);
-      onMessage(data);
+
+      this.listeners.forEach((listener) =>
+        listener(data)
+      );
     };
 
     this.socket.onclose = () => {
@@ -28,12 +36,26 @@ export class RoomSocket {
     };
   }
 
+  addListener(listener: (data: any) => void) {
+    this.listeners.push(listener);
+  }
+
+  removeListener(listener: (data: any) => void) {
+    this.listeners =
+      this.listeners.filter(
+        (l) => l !== listener
+      );
+  }
+
   send(data: any) {
     this.socket?.send(JSON.stringify(data));
   }
 
   disconnect() {
+    this.listeners = [];
     this.socket?.close();
+    this.socket = null;
   }
 }
+
 export const roomSocket = new RoomSocket();

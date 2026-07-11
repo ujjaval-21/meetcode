@@ -1,16 +1,17 @@
 import {useState, useRef, useCallback, useEffect} from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import MonacoEditor from "../components/editor/MonacoEditor";
 import { useRoom } from "../hooks/useRoom";
+import { useEditor } from "../hooks/useEditor";
+import { roomSocket } from "../services/websocket";
+
 import {
   getRoom,
   getParticipants,
   leaveRoom,
 } from "../services/room";
-
 import { getToken } from "../services/storage";
-
 import ConfirmDialog from "../components/ui/ConfirmDialog";
-
 import type {
   RoomDetailResponse,
   RoomParticipant,
@@ -332,7 +333,7 @@ const MIN_SIDEBAR = 280;
 const MAX_SIDEBAR = 480;
 
 export default function CodingRoom() {
-  const { roomCode } = useParams();
+  const { roomCode = "" } = useParams();
   const {
   room,
   setRoom,
@@ -342,7 +343,6 @@ export default function CodingRoom() {
   disconnectSocket,
   } = useRoom();
   const [loading, setLoading] = useState(true);
-  const [language, setLanguage] = useState<Language>("TypeScript");
   const [langOpen, setLangOpen] = useState(false);
   const [muted, setMuted] = useState(false);
   const [cameraOff, setCameraOff] = useState(false);
@@ -352,6 +352,13 @@ export default function CodingRoom() {
   const [sidebarWidth, setSidebarWidth] = useState(300);
   const [isRunning, setIsRunning] = useState(false);
   const navigate = useNavigate();
+
+  const {
+    code,
+    setCode,
+    language,
+    setLanguage,
+  } = useEditor();
 
   const [showLeaveDialog, setShowLeaveDialog] = useState(false);
   const [leaving, setLeaving] = useState(false);
@@ -403,20 +410,33 @@ export default function CodingRoom() {
 
 
   useEffect(() => {
-    async function loadRoom() {
-      if (!roomCode) return;
+    if (!roomCode) return;
 
+    const handleEditorMessage = (message: any) => {
+      if (message.type === "code_change") {
+        setCode(message.code);
+
+        if (message.language) {
+          setLanguage(message.language);
+        }
+      }
+    };
+
+    async function loadRoom() {
       try {
         const roomData = await getRoom(roomCode);
-
         setRoom(roomData);
 
         await refreshParticipants(roomCode);
 
         const token = getToken();
+
         if (token) {
           connectSocket(roomCode, token);
         }
+
+        roomSocket.addListener(handleEditorMessage);
+
       } catch (error) {
         console.error(error);
       } finally {
@@ -427,10 +447,10 @@ export default function CodingRoom() {
     loadRoom();
 
     return () => {
+      roomSocket.removeListener(handleEditorMessage);
       disconnectSocket();
     };
   }, [roomCode]);
-
 
   if (loading) {
     return (
@@ -581,7 +601,18 @@ export default function CodingRoom() {
 
         {/* ── Editor ── */}
         <div className="flex-1 flex flex-col overflow-hidden min-w-0">
-          <CodeArea />
+          <MonacoEditor
+            code={code}
+            language={language}
+            onChange={(newCode) => {
+              setCode(newCode);
+              roomSocket.send({
+                type: "code_change",
+                code: newCode,
+                language,
+              });
+            }}
+          />
         </div>
 
         {/* ── Resize handle ── */}

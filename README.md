@@ -1,46 +1,124 @@
 # 🚀 MeetCode
 
-MeetCode is a real-time collaborative coding platform that allows developers to create or join coding rooms, write code together, communicate in real time, and collaborate efficiently.
+> A modern real-time collaborative coding platform inspired by VS Code Live Share, Replit Multiplayer, and Google Docs.
 
-The project is being built with a modern full-stack architecture using **FastAPI**, **PostgreSQL**, **Redis**, and **React**.
+Build together. Code together. Learn together.
+
+![Status](https://img.shields.io/badge/status-active-success)
+![Frontend](https://img.shields.io/badge/Frontend-React-blue)
+![Backend](https://img.shields.io/badge/Backend-FastAPI-green)
+![Database](https://img.shields.io/badge/PostgreSQL-Database-blue)
+![License](https://img.shields.io/badge/license-MIT-yellow)
+
+MeetCode is a full-stack collaborative coding platform where multiple developers can join the same room and code together in real time.
+
+It combines:
+
+- ⚡ Live collaborative editing
+- 🔐 Secure authentication
+- 🏠 Coding rooms
+- 👥 Real-time participant synchronization
+- 💬 Team collaboration
+- 🚀 Modern IDE experience
+
+MeetCode is designed as a production-quality project showcasing modern full-stack development using React, FastAPI, PostgreSQL, WebSockets, and Monaco Editor.
 
 ---
 
-## ✨ Features
+# 📸 Screenshots
 
-- 🔐 User Authentication (Signup/Login)
-- 👤 JWT-based secure authentication
-- 🏠 Create coding rooms
-- 🔑 Join rooms using a unique room code
-- 👑 Host and participant roles
-- 💻 Real-time collaborative code editor *(In Progress)*
-- ⚡ WebSocket-based communication *(Planned)*
-- 🎥 Voice/Video collaboration *(Planned)*
-- 💬 Live chat *(Planned)*
-- 📝 Code execution support *(Planned)*
-- 📜 Room history *(Planned)*
+## Login
+
+![Login](./assets/login.png)
+
+## Dashboard
+
+![Dashboard](./assets/dashboard.png)
+
+## Collaborative Editor
+
+![Editor](./assets/editor.png)
+
+## Real-time Collaboration
+
+![Realtime](./assets/realtime.png)
+
+---
+
+# ✨ Features
+
+## ✅ Completed
+
+- JWT Authentication
+- Login / Signup
+- Protected Routes
+- Room Creation
+- Join Room
+- Leave Room
+- Host & Participant Roles
+- Real-time Room Participants
+- Monaco Code Editor
+- Language Selection
+- Theme Support
+- Live WebSocket Connection
+- Real-time Collaborative Editing
+
+---
+
+## 🚧 Coming Soon
+
+- Live Chat
+- Voice Call
+- Video Call
+- Screen Sharing
+- Whiteboard
+- File Explorer
+- Code Execution
+- Cursor Presence
+- Typing Indicators
+- Room Recording
+- Interview Mode
 
 ---
 
 # 🛠 Tech Stack
 
-## Backend
+| Layer | Technology |
+|-------|------------|
+| Frontend | React + TypeScript |
+| UI | Tailwind CSS |
+| Editor | Monaco Editor |
+| Backend | FastAPI |
+| Database | PostgreSQL |
+| ORM | SQLAlchemy |
+| Authentication | JWT |
+| Realtime | WebSockets |
+| Migrations | Alembic |
+| Future Cache | Redis |
 
-- Python
-- FastAPI
-- SQLAlchemy 2.0
-- Alembic
-- PostgreSQL
-- Redis
-- JWT Authentication
-- Pydantic
+---
 
-## Frontend
+# 📈 Current Progress
 
-- React
-- TypeScript
-- Vite
-- Tailwind CSS
+Authentication          ██████████ 100%
+
+Room Management         ██████████ 100%
+
+WebSocket               ██████████ 100%
+
+Participants            ██████████ 100%
+
+Collaborative Editor    ██████████ 100%
+
+Chat                    ██░░░░░░░░ 20%
+
+Voice                   ░░░░░░░░░░ 0%
+
+Video                   ░░░░░░░░░░ 0%
+
+Whiteboard              ░░░░░░░░░░ 0%
+
+Docker                  ░░░░░░░░░░ 0%
 
 ---
 
@@ -50,29 +128,116 @@ The project is being built with a modern full-stack architecture using **FastAPI
 meetcode/
 │
 ├── backend/
-│   ├── app/
-│   │   ├── api/
-│   │   ├── core/
-│   │   ├── db/
-│   │   ├── middleware/
-│   │   ├── models/
-│   │   ├── schemas/
-│   │   ├── services/
-│   │   ├── utils/
-│   │   ├── websocket/
-│   │   ├── config.py
-│   │   └── main.py
-│   │
-│   └── requirements.txt
+|   │
+|   ├── api/
+|   ├── core/
+|   ├── db/
+|   ├── middleware/
+|   ├── models/
+|   ├── schemas/
+|   ├── services/
+|   ├── utils/
+|   ├── websocket/
+|   └── main.py
 │
 ├── frontend/
-│
-├── alembic/
-│
-├── tests/
-│
-└── README.md
+    │
+    ├── components/
+    ├── context/
+    ├── hooks/
+    ├── pages/
+    ├── services/
+    ├── routes/
+    ├── store/
+    ├── types/
+    └── App.tsx
+
 ```
+
+---
+
+# 🏗 Architecture
+
+```text
+              Browser
+                 │
+        React + TypeScript
+                 │
+      Axios      │     WebSocket
+          \      │      /
+           \     │     /
+            FastAPI Backend
+                 │
+         SQLAlchemy ORM
+                 │
+           PostgreSQL
+```
+
+---
+
+# 🎯 Core Features
+
+- Multi-user coding rooms
+- Live collaborative editing
+- Automatic participant synchronization
+- JWT authentication
+- Monaco Editor integration
+- WebSocket communication
+- Host and participant roles
+- Responsive interface
+
+---
+
+## Roadmap
+
+- [x] Authentication
+- [x] JWT
+- [x] PostgreSQL
+- [x] Room System
+- [x] WebSockets
+- [x] Real-time Participants
+- [x] Monaco Editor
+- [x] Collaborative Editing
+
+- [ ] Cursor Synchronization
+- [ ] Live Chat
+- [ ] Code Execution
+- [ ] Voice Chat
+- [ ] Video Chat
+- [ ] Whiteboard
+- [ ] File Explorer
+- [ ] Docker
+- [ ] Redis
+- [ ] Kubernetes
+
+---
+
+## Why MeetCode?
+
+MeetCode is being built as a production-quality collaborative development platform.
+
+The project focuses on:
+
+- Clean Architecture
+- Real-time Communication
+- Scalable Backend Design
+- Modern React Development
+- WebSocket Architecture
+- Collaborative Editing
+- System Design
+
+---
+
+## Future Vision
+
+MeetCode aims to become an all-in-one collaborative development environment featuring:
+
+- Collaborative IDE
+- Online Compiler
+- Pair Programming
+- Technical Interview Platform
+- Classroom Platform
+- Team Workspace
 
 ---
 
@@ -209,24 +374,6 @@ pytest
 
 ---
 
-# 📈 Roadmap
-
-- [x] User Authentication
-- [x] PostgreSQL Integration
-- [x] Alembic Migrations
-- [x] Room Creation Model
-- [ ] Participant Management
-- [ ] WebSocket Integration
-- [ ] Collaborative Code Editor
-- [ ] Live Chat
-- [ ] Voice Chat
-- [ ] Video Chat
-- [ ] Code Execution
-- [ ] Screen Sharing
-- [ ] Deployment
-
----
-
 # 🤝 Contributing
 
 Contributions, suggestions, and improvements are welcome.
@@ -247,4 +394,8 @@ GitHub: https://github.com/ujjaval-21
 
 ---
 
-## ⭐ If you like this project, consider giving it a star!
+---
+
+⭐ If you found this project interesting, consider giving it a star.
+
+Made with ❤️ using React, FastAPI and PostgreSQL.
