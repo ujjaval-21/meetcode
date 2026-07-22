@@ -4,7 +4,7 @@ import MonacoEditor from "../components/editor/MonacoEditor";
 import { useRoom } from "../hooks/useRoom";
 import { useEditor } from "../hooks/useEditor";
 import { roomSocket } from "../services/websocket";
-
+import type * as Monaco from "monaco-editor";
 import {
   getRoom,
   getParticipants,
@@ -95,8 +95,11 @@ function Avatar({
   const sizes = { sm: "w-7 h-7 text-xs", md: "w-9 h-9 text-xs", lg: "w-11 h-11 text-sm" };
   return (
     <div
+      style={{
+        backgroundColor: color,
+      }}
       className={[
-        `bg-gradient-to-br ${color} flex items-center justify-center rounded-xl font-bold text-white shrink-0`,
+        "flex items-center justify-center rounded-xl font-bold text-white shrink-0",
         sizes[size],
         ring ?? "",
       ].join(" ")}
@@ -131,7 +134,7 @@ function MemberCard({participant,}: {participant: RoomParticipant;}) {
       <div className="flex items-center gap-3">
         <Avatar
           initials={initials}
-          color="from-violet-500 to-blue-500"
+          color={participant.color}
         />
         <div>
           <div className="flex items-center gap-2">
@@ -366,6 +369,11 @@ export default function CodingRoom() {
   const isDragging = useRef(false);
   const dragStartX = useRef(0);
   const dragStartWidth = useRef(0);
+  const editorRef = useRef<Monaco.editor.IStandaloneCodeEditor | null>(null);
+  const monacoRef = useRef<typeof Monaco | null>(null);
+  const remoteCursorDecorations = useRef<Map<string, Monaco.editor.IEditorDecorationsCollection>>(new Map());
+  const remoteCursorWidgets = useRef<Map<string, Monaco.editor.IContentWidget>>(new Map());
+  const isApplyingRemoteEdit = useRef(false);
 
   const handleDragStart = useCallback((e: React.MouseEvent) => {
     isDragging.current = true;
@@ -408,17 +416,211 @@ export default function CodingRoom() {
     setTimeout(() => setIsRunning(false), 1800);
   }
 
+  const handleEditorMount = (
+    editor: Monaco.editor.IStandaloneCodeEditor,
+    monaco: typeof Monaco
+  ) => {
+
+    editorRef.current = editor;
+    monacoRef.current = monaco;
+
+    console.log("✅ Monaco mounted");
+
+    editor.onDidChangeCursorPosition((event) => {
+
+      const position = {
+        lineNumber: event.position.lineNumber,
+        column: event.position.column,
+      };
+
+      roomSocket.send({
+        type: "cursor_move",
+        position,
+      });
+
+    });
+
+    editor.onDidChangeModelContent((event) => {
+
+      if (isApplyingRemoteEdit.current) {
+        return;
+      }
+
+      roomSocket.send({
+
+        type: "code_change",
+
+        changes: event.changes.map((change) => ({
+
+          range: {
+            startLineNumber: change.range.startLineNumber,
+            startColumn: change.range.startColumn,
+            endLineNumber: change.range.endLineNumber,
+            endColumn: change.range.endColumn,
+          },
+
+          text: change.text,
+
+        })),
+
+      });
+
+    });
+
+  };
+
+
+  const handleCodeChange = (message: any) => {
+    if (!editorRef.current || !monacoRef.current) {
+      return;
+    }
+  
+    const editor = editorRef.current;
+    const monaco = monacoRef.current;
+  
+    if (!message.changes?.length) {
+      return;
+    }
+  
+    isApplyingRemoteEdit.current = true;
+  
+    try {
+      editor.executeEdits(
+        "remote",
+        message.changes.map((change: any) => ({
+          range: new monaco.Range(
+            change.range.startLineNumber,
+            change.range.startColumn,
+            change.range.endLineNumber,
+            change.range.endColumn
+          ),
+          text: change.text,
+        }))
+      );
+    } finally {
+      isApplyingRemoteEdit.current = false;
+    }
+  };
+
+
+  const handleCursorMove = (message: any) => {
+    console.log(message);
+    if (!editorRef.current || !monacoRef.current) return;
+    
+    const { user_id, username, position, color } = message;
+    
+    let decorations =
+      remoteCursorDecorations.current.get(user_id);
+    
+    if (!decorations) {
+      decorations =
+        editorRef.current.createDecorationsCollection();
+    
+      remoteCursorDecorations.current.set(
+        user_id,
+        decorations
+      );
+    }
+  
+    const safeUserId = user_id.replace(/[^a-zA-Z0-9]/g, "");
+    const className = `remote-cursor-${safeUserId}`;
+  
+    if (!document.getElementById(className)) {
+      const style = document.createElement("style");
+    
+      style.id = className;
+    
+      style.textContent = `
+        .${className} {
+          border-left: 2px solid ${color};
+        }`;
+    
+      document.head.appendChild(style);
+    }
+  
+    decorations.set([
+      {
+        range: new monacoRef.current.Range(
+          position.lineNumber,
+          position.column,
+          position.lineNumber,
+          position.column
+        ),
+        options: {
+          className,
+        },
+      },
+    ]);
+    let widget = remoteCursorWidgets.current.get(user_id);
+
+    if (!widget) {
+      const domNode = document.createElement("div");
+    
+      domNode.style.background = color;
+      domNode.style.color = "#fff";
+      domNode.style.padding = "2px 6px";
+      domNode.style.borderRadius = "4px";
+      domNode.style.fontSize = "11px";
+      domNode.style.fontWeight = "600";
+      domNode.style.whiteSpace = "nowrap";
+      domNode.style.pointerEvents = "none";
+    
+      domNode.innerText = username;
+    
+      let currentPosition = position;
+    
+      widget = {
+        getId: () => `cursor-widget-${user_id}`,
+      
+        getDomNode: () => domNode,
+      
+        getPosition: () => ({
+          position: currentPosition,
+          preference: [
+            monacoRef.current!.editor.ContentWidgetPositionPreference.ABOVE,
+          ],
+        }),
+      };
+    
+      remoteCursorWidgets.current.set(user_id, widget);
+    
+      editorRef.current.addContentWidget(widget);
+    } else {
+      const domNode = widget.getDomNode();
+    
+      domNode.innerText = username;
+      domNode.style.background = color;
+    
+      let currentPosition = position;
+    
+      widget.getPosition = () => ({
+        position: currentPosition,
+        preference: [
+          monacoRef.current!.editor.ContentWidgetPositionPreference.ABOVE,
+        ],
+      });
+    
+      editorRef.current.layoutContentWidget(widget);
+    }
+  };
+
+
 
   useEffect(() => {
     if (!roomCode) return;
 
     const handleEditorMessage = (message: any) => {
-      if (message.type === "code_change") {
-        setCode(message.code);
-
-        if (message.language) {
-          setLanguage(message.language);
-        }
+      switch (message.type) {
+        case "code_change":
+          handleCodeChange(message);
+          break;
+      
+        case "cursor_move":
+          handleCursorMove(message);
+          break;
+      
+        default:
+          break;
       }
     };
 
@@ -451,6 +653,25 @@ export default function CodingRoom() {
       disconnectSocket();
     };
   }, [roomCode]);
+
+
+  useEffect(() => {
+    if (!editorRef.current) return;
+    
+    const disposable = editorRef.current.onDidChangeCursorPosition(
+      (event) => {
+        console.log("Cursor:", {
+          lineNumber: event.position.lineNumber,
+          column: event.position.column,
+        });
+      }
+    );
+  
+    return () => {
+      disposable.dispose();
+    };
+  }, []);
+
 
   if (loading) {
     return (
@@ -577,7 +798,7 @@ export default function CodingRoom() {
                 >
                   <Avatar
                     initials={initials}
-                    color="from-violet-500 to-blue-500"
+                    color={participant.color}
                     size="sm"
                   />
                 </div>
@@ -604,13 +825,9 @@ export default function CodingRoom() {
           <MonacoEditor
             code={code}
             language={language}
-            onChange={(newCode) => {
-              setCode(newCode);
-              roomSocket.send({
-                type: "code_change",
-                code: newCode,
-                language,
-              });
+            onMount={handleEditorMount}
+            onChange={(newCode)=>{
+                setCode(newCode);
             }}
           />
         </div>

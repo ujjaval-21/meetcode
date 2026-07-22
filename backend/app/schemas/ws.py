@@ -6,6 +6,19 @@ from pydantic import BaseModel, ConfigDict, Field
 from app.websocket.events import WebSocketEvent
 
 
+
+class RangeModel(BaseModel):
+    startLineNumber: int
+    startColumn: int
+    endLineNumber: int
+    endColumn: int
+
+
+class CodeChange(BaseModel):
+    range: RangeModel
+    text: str
+
+
 class BaseWSMessage(BaseModel):
     """
     Base model for every websocket message.
@@ -38,8 +51,7 @@ class LeaveMessage(BaseWSMessage):
 class CodeChangeMessage(BaseWSMessage):
     type: WebSocketEvent = WebSocketEvent.CODE_CHANGE
 
-    language: str
-    code: str
+    changes: list[CodeChange]
 
 
 class CursorMessage(BaseWSMessage):

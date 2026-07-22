@@ -83,6 +83,7 @@ export interface RoomParticipant {
   user_id: string;
   username: string;
   is_host: boolean;
+  color: string;
 }
 
 export interface RoomParticipantsResponse {

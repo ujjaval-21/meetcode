@@ -62,6 +62,7 @@ class ConnectionManager:
         self,
         room_code: str,
         message: dict,
+        exclude_user: UUID | None = None,
     ) -> None:
         print("\n===== BROADCAST =====")
         print("Room:", room_code)
@@ -77,6 +78,8 @@ class ConnectionManager:
         disconnected_users = []
 
         for user_id, websocket in self.active_connections[room_code].items():
+            if exclude_user == user_id:
+                continue
             try:
                 await websocket.send_json(message)
             except Exception:

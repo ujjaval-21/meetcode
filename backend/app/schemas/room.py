@@ -103,6 +103,7 @@ class RoomParticipantResponse(BaseModel):
     user_id: uuid.UUID
     username: str
     is_host: bool
+    color: str
 
     model_config = ConfigDict(from_attributes=True)
 

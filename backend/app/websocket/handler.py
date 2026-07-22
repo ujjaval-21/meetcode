@@ -5,6 +5,7 @@ from app.schemas.ws import ErrorMessage
 from app.websocket.auth import authenticate_websocket
 from app.websocket.events import WebSocketEvent
 from app.websocket.manager import manager
+from app.utils.participant_colors import get_participant_color
 
 
 class WebSocketHandler:
@@ -26,6 +27,7 @@ class WebSocketHandler:
                 room_code,
                 db,
             )
+            participant_color = get_participant_color(user.id)
 
             # Register connection
             await manager.connect(
@@ -39,7 +41,9 @@ class WebSocketHandler:
                 room.room_code,
                 {
                     "type": WebSocketEvent.USER_JOINED,
+                    "user_id": str(user.id),
                     "username": user.username,
+                    "color": participant_color,
                 },
             )
 
@@ -53,10 +57,26 @@ class WebSocketHandler:
                         room.room_code,
                         {
                             "type": WebSocketEvent.CODE_CHANGE,
-                            "code": data.get("code"),
-                            "language": data.get("language"),
+                            "user_id": str(user.id),
+                            "username": user.username,
+                            "changes": data.get("changes", []),
                         },
-                    )            
+                        exclude_user=user.id,
+                    )
+
+                elif message_type == WebSocketEvent.CURSOR_MOVE:
+                    await manager.broadcast(
+                        room.room_code,
+                        {
+                            "type": WebSocketEvent.CURSOR_MOVE,
+                            "user_id": str(user.id),
+                            "username": user.username,
+                            "color": participant_color,
+                            "position": data.get("position"),
+                        },
+                        exclude_user=user.id,
+                    )
+
                 else:
                     await manager.broadcast(
                         room.room_code,
@@ -74,7 +94,9 @@ class WebSocketHandler:
                 room.room_code,
                 {
                     "type": WebSocketEvent.USER_LEFT,
+                    "user_id": str(user.id),
                     "username": user.username,
+                    "color": participant_color,
                 },
             )
 

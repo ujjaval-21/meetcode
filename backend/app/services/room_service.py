@@ -12,6 +12,7 @@ from app.models.user import User
 from app.models.participant import Participant
 from app.schemas.room import CreateRoomRequest, MessageResponse
 from app.schemas.room import RoomParticipantsResponse, RoomParticipantResponse
+from app.utils.participant_colors import get_participant_color
 
 
 ROOM_CODE_LENGTH = 8
@@ -296,9 +297,10 @@ class RoomService:
 
         participants = [
             RoomParticipantResponse(
-            user_id=user.id,
-            username=user.username,
-            is_host=participant.is_host,
+                user_id=user.id,
+                username=user.username,
+                is_host=participant.is_host,
+                color=get_participant_color(user.id),
             )
             for participant, user in rows
         ]
