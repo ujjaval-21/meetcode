@@ -17,6 +17,7 @@ class WebSocketEvent(StrEnum):
     # Code editor
     CODE_CHANGE = "code_change"
     CURSOR_MOVE = "cursor_move"
+    LANGUAGE_CHANGE = "language_change"
 
     # Presence
     USER_JOINED = "user_joined"
@@ -29,4 +30,4 @@ class WebSocketEvent(StrEnum):
     # Errors
     ERROR = "error"
 
-    
+

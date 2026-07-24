@@ -7,19 +7,17 @@ import { roomSocket } from "../services/websocket";
 import type * as Monaco from "monaco-editor";
 import {
   getRoom,
-  getParticipants,
   leaveRoom,
 } from "../services/room";
 import { getToken } from "../services/storage";
 import ConfirmDialog from "../components/ui/ConfirmDialog";
 import type {
-  RoomDetailResponse,
   RoomParticipant,
 } from "../services/room";
+import type { Language } from "../types/editor";
 
 import {
   Code2,
-  Wifi,
   Play,
   LogOut,
   Mic,
@@ -32,7 +30,6 @@ import {
   Hash,
   Crown,
   Terminal,
-  Maximize2,
   MoreHorizontal,
   SmilePlus,
 } from "lucide-react";
@@ -50,8 +47,6 @@ interface ChatMessage {
   time: string;
 }
 
-type Language = "TypeScript" | "Python" | "Go" | "Rust" | "Java" | "C++" | "JavaScript";
-
 // ─── Static data ──────────────────────────────────────────────────────────────
 
 
@@ -63,21 +58,19 @@ const INITIAL_MESSAGES: ChatMessage[] = [
   { id: "5", authorId: "4", authorName: "Priya L", authorInitials: "PL", authorColor: "from-rose-500 to-pink-500", text: "Don't forget edge cases — empty array and duplicates.", time: "10:44 AM" },
 ];
 
-const LANGUAGES: Language[] = ["TypeScript", "Python", "Go", "Rust", "Java", "C++", "JavaScript"];
+const LANGUAGES: ReadonlyArray<{
+    label: string;
+    value: Language;
+}> = [
+  { label: "JavaScript", value: "javascript" },
+  { label: "TypeScript", value: "typescript" },
+  { label: "Python", value: "python" },
+  { label: "Java", value: "java" },
+  { label: "C++", value: "cpp" },
+  { label: "Go", value: "go" },
+  { label: "Rust", value: "rust" },
+];
 
-const PLACEHOLDER_CODE = `function twoSum(nums: number[], target: number): number[] {
-  const map = new Map<number, number>();
-
-  for (let i = 0; i < nums.length; i++) {
-    const complement = target - nums[i];
-    if (map.has(complement)) {
-      return [map.get(complement)!, i];
-    }
-    map.set(nums[i], i);
-  }
-
-  return [];
-}`;
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
@@ -214,121 +207,8 @@ function ActionButton({
   );
 }
 
-// ─── Code area placeholder ────────────────────────────────────────────────────
 
-function CodeArea() {
-  return (
-    <div className="flex-1 flex flex-col overflow-hidden bg-slate-950 relative">
-      {/* Editor top bar */}
-      <div className="flex items-center gap-0 border-b border-slate-800 bg-slate-950/80 shrink-0">
-        {["solution.ts", "utils.ts", "tests.ts"].map((tab, i) => (
-          <button
-            key={tab}
-            className={[
-              "px-4 py-2.5 text-xs font-mono border-r border-slate-800 transition-colors",
-              i === 0
-                ? "text-white bg-slate-900 border-b-2 border-b-violet-500"
-                : "text-slate-500 hover:text-slate-300 hover:bg-slate-900/40",
-            ].join(" ")}
-          >
-            {tab}
-          </button>
-        ))}
-        <div className="flex-1" />
-        <button className="px-3 py-2 text-slate-500 hover:text-slate-300 transition-colors">
-          <Maximize2 className="w-3.5 h-3.5" />
-        </button>
-      </div>
 
-      {/* Fake Monaco editor */}
-      <div className="flex-1 overflow-auto p-5 font-mono text-sm leading-7">
-        <div className="flex gap-5">
-          {/* Gutter */}
-          <div className="flex flex-col text-slate-700 select-none text-right text-xs leading-7 min-w-[2ch]">
-            {PLACEHOLDER_CODE.split("\n").map((_, i) => (
-              <span key={i}>{i + 1}</span>
-            ))}
-          </div>
-          {/* Code */}
-          <pre className="flex-1 text-left overflow-x-auto">
-            <code>
-              {PLACEHOLDER_CODE.split("\n").map((line, i) => (
-                <div
-                  key={i}
-                  className={i === 7 ? "bg-violet-500/8 -mx-2 px-2 rounded" : ""}
-                >
-                  {renderLine(line)}
-                </div>
-              ))}
-            </code>
-          </pre>
-        </div>
-        {/* Remote cursor indicator */}
-        <div className="mt-1 flex items-center gap-2">
-          <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-blue-500/10 border border-blue-500/20">
-            <div className="w-0.5 h-4 bg-blue-400 animate-pulse rounded-full" />
-            <span className="text-xs text-blue-400 font-medium">Sara</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Bottom status bar */}
-      <div className="flex items-center justify-between px-4 py-1.5 bg-violet-600/90 text-white/80 text-xs font-mono shrink-0">
-        <div className="flex items-center gap-4">
-          <span className="flex items-center gap-1"><Wifi className="w-3 h-3" /> Connected</span>
-          <span>Ln 8, Col 22</span>
-        </div>
-        <div className="flex items-center gap-4">
-          <span>TypeScript</span>
-          <span>UTF-8</span>
-          <span>2 cursors</span>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// Syntax highlight helper (presentational only)
-function renderLine(line: string) {
-  return (
-    <span
-      dangerouslySetInnerHTML={{
-        __html: line
-          .replace(/&/g, "&amp;")
-          .replace(/</g, "&lt;")
-          .replace(/>/g, "&gt;")
-          .replace(
-            /\b(function|const|let|var|return|for|if|new|of|number)\b/g,
-            '<span class="text-violet-400">$1</span>'
-          )
-          .replace(
-            /\b(Map|number|string|boolean|void)\b/g,
-            '<span class="text-blue-300">$1</span>'
-          )
-          .replace(
-            /(["'`][^"'`]*["'`])/g,
-            '<span class="text-green-300">$1</span>'
-          )
-          .replace(
-            /\b(\d+)\b/g,
-            '<span class="text-orange-300">$1</span>'
-          )
-          .replace(
-            /(\/\/.*$)/gm,
-            '<span class="text-slate-500 italic">$1</span>'
-          )
-          .replace(
-            /\b(nums|target|complement|map|i)\b/g,
-            '<span class="text-orange-200">$1</span>'
-          )
-          .replace(
-            /\b(twoSum|has|get|set|push)\b/g,
-            '<span class="text-yellow-300">$1</span>'
-          ),
-      }}
-    />
-  );
-}
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
@@ -355,7 +235,7 @@ export default function CodingRoom() {
   const [sidebarWidth, setSidebarWidth] = useState(300);
   const [isRunning, setIsRunning] = useState(false);
   const navigate = useNavigate();
-
+  const isApplyingRemoteLanguage = useRef(false);
   const {
     code,
     setCode,
@@ -605,6 +485,17 @@ export default function CodingRoom() {
   };
 
 
+  const handleLanguageChange = (message: any) => {
+    if (!message.language) {
+      return;
+    }
+
+    isApplyingRemoteLanguage.current = true;
+
+    setLanguage(message.language);
+  };
+
+
 
   useEffect(() => {
     if (!roomCode) return;
@@ -617,6 +508,10 @@ export default function CodingRoom() {
       
         case "cursor_move":
           handleCursorMove(message);
+          break;
+
+        case "language_change":
+          handleLanguageChange(message);
           break;
       
         default:
@@ -672,6 +567,37 @@ export default function CodingRoom() {
     };
   }, []);
 
+  
+  useEffect(() => {
+    if (isApplyingRemoteLanguage.current) {
+      isApplyingRemoteLanguage.current = false;
+      return;
+    }
+
+    roomSocket.send({
+      type: "language_change",
+      language,
+    });
+  }, [language]);
+
+
+  useEffect(() => {
+    if (!editorRef.current || !monacoRef.current) {
+      return;
+    }
+  
+    const model = editorRef.current.getModel();
+  
+    if (!model) {
+      return;
+    }
+  
+    monacoRef.current.editor.setModelLanguage(
+      model,
+      language
+    );
+  }, [language]);
+
 
   if (loading) {
     return (
@@ -708,6 +634,10 @@ export default function CodingRoom() {
     }
   }
 
+
+
+
+
   return (
     <div className="h-screen flex flex-col bg-slate-950 text-white overflow-hidden">
 
@@ -737,23 +667,26 @@ export default function CodingRoom() {
               onClick={() => setLangOpen((v) => !v)}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 hover:border-slate-600 text-slate-300 hover:text-white text-xs font-mono font-medium transition-all duration-200"
             >
-              {language}
+              {LANGUAGES.find((l) => l.value === language)?.label}
               <ChevronDown className={`w-3 h-3 transition-transform duration-200 ${langOpen ? "rotate-180" : ""}`} />
             </button>
             {langOpen && (
               <div className="absolute top-full mt-1.5 left-0 w-36 bg-slate-900 border border-slate-700 rounded-xl shadow-xl shadow-black/40 z-30 overflow-hidden py-1">
                 {LANGUAGES.map((lang) => (
                   <button
-                    key={lang}
-                    onClick={() => { setLanguage(lang); setLangOpen(false); }}
+                    key={lang.value}
+                    onClick={() => {
+                      setLanguage(lang.value);
+                      setLangOpen(false);
+                    }}
                     className={[
                       "w-full text-left px-3 py-2 text-xs font-mono transition-colors",
-                      lang === language
+                      lang.value === language
                         ? "text-violet-400 bg-violet-500/10"
                         : "text-slate-300 hover:bg-slate-800 hover:text-white",
                     ].join(" ")}
                   >
-                    {lang}
+                    {lang.label}
                   </button>
                 ))}
               </div>

@@ -9,18 +9,20 @@ import type {
   Dispatch,
   SetStateAction,
 } from "react";
+import type { Language } from "../types/editor";
 
 interface EditorContextType {
   code: string;
-  language: string;
+  language: Language;
   theme: string;
   fontSize: number;
 
   setCode: Dispatch<SetStateAction<string>>;
-  setLanguage: Dispatch<SetStateAction<string>>;
+  setLanguage: Dispatch<SetStateAction<Language>>;
   setTheme: Dispatch<SetStateAction<string>>;
   setFontSize: Dispatch<SetStateAction<number>>;
 }
+
 
 const EditorContext = createContext<
   EditorContextType | undefined
@@ -40,7 +42,7 @@ export function EditorProvider({
   );
 
   const [language, setLanguage] =
-    useState("javascript");
+    useState<Language>("javascript");
 
   const [theme, setTheme] =
     useState("vs-dark");

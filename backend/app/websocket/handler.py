@@ -77,6 +77,18 @@ class WebSocketHandler:
                         exclude_user=user.id,
                     )
 
+                elif message_type == WebSocketEvent.LANGUAGE_CHANGE:
+                    await manager.broadcast(
+                        room.room_code,
+                        {
+                            "type": WebSocketEvent.LANGUAGE_CHANGE,
+                            "user_id": str(user.id),
+                            "username": user.username,
+                            "language": data.get("language"),
+                        },
+                        exclude_user=user.id,
+                    )
+
                 else:
                     await manager.broadcast(
                         room.room_code,

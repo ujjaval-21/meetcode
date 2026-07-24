@@ -54,6 +54,12 @@ class CodeChangeMessage(BaseWSMessage):
     changes: list[CodeChange]
 
 
+class LanguageChangeMessage(BaseWSMessage):
+    type: WebSocketEvent = WebSocketEvent.LANGUAGE_CHANGE
+
+    language: str
+
+
 class CursorMessage(BaseWSMessage):
     type: WebSocketEvent = WebSocketEvent.CURSOR_MOVE
 

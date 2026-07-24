@@ -1,10 +1,12 @@
 import Editor from "@monaco-editor/react";
 import type { OnMount } from "@monaco-editor/react";
+import type { Language } from "../../types/editor";
+
 
 
 interface MonacoEditorProps {
   code: string;
-  language: string;
+  language: Language;
   onChange: (value: string) => void;
   onMount?: OnMount;
 }

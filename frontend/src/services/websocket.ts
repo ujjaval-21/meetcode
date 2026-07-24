@@ -48,7 +48,14 @@ export class RoomSocket {
   }
 
   send(data: any) {
-    this.socket?.send(JSON.stringify(data));
+    if (
+      !this.socket ||
+      this.socket.readyState !== WebSocket.OPEN
+    ) {
+      return;
+    }
+  
+    this.socket.send(JSON.stringify(data));
   }
 
   disconnect() {
