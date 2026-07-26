@@ -1,5 +1,6 @@
 from fastapi import WebSocket, WebSocketDisconnect
 from sqlalchemy.ext.asyncio import AsyncSession
+from datetime import datetime, timezone
 
 from app.schemas.ws import ErrorMessage
 from app.websocket.auth import authenticate_websocket
@@ -47,6 +48,16 @@ class WebSocketHandler:
                 },
             )
 
+            await manager.broadcast(
+                room.room_code,
+                {
+                    "type": WebSocketEvent.SYSTEM_MESSAGE,
+                    "message": f"{user.username} joined the room",
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                },
+            )
+
+
             while True:
                 data = await websocket.receive_json()
                 print("Received:", data)
@@ -89,6 +100,41 @@ class WebSocketHandler:
                         exclude_user=user.id,
                     )
 
+                elif message_type == WebSocketEvent.CHAT_MESSAGE:
+                    await manager.broadcast(
+                        room.room_code,
+                        {
+                            "type": WebSocketEvent.CHAT_MESSAGE,
+                            "user_id": str(user.id),
+                            "username": user.username,
+                            "color": participant_color,
+                            "message": data.get("message"),
+                            "timestamp": datetime.now(timezone.utc).isoformat(),
+                        },
+                    )
+
+                elif message_type == WebSocketEvent.TYPING:
+                    await manager.broadcast(
+                        room.room_code,
+                        {
+                            "type": WebSocketEvent.TYPING,
+                            "user_id": str(user.id),
+                            "username": user.username,
+                        },
+                        exclude_user=user.id,
+                    )
+
+                elif message_type == WebSocketEvent.STOP_TYPING:
+                    await manager.broadcast(
+                        room.room_code,
+                        {
+                            "type": WebSocketEvent.STOP_TYPING,
+                            "user_id": str(user.id),
+                            "username": user.username,
+                        },
+                        exclude_user=user.id,
+                    )
+
                 else:
                     await manager.broadcast(
                         room.room_code,
@@ -109,6 +155,15 @@ class WebSocketHandler:
                     "user_id": str(user.id),
                     "username": user.username,
                     "color": participant_color,
+                },
+            )
+
+            await manager.broadcast(
+                room.room_code,
+                {
+                    "type": WebSocketEvent.SYSTEM_MESSAGE,
+                    "message": f"{user.username} left the room",
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
                 },
             )
 

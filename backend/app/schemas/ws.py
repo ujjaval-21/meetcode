@@ -30,10 +30,20 @@ class BaseWSMessage(BaseModel):
 
 
 class ChatMessage(BaseWSMessage):
-    type: WebSocketEvent = WebSocketEvent.CHAT
+    type: WebSocketEvent = WebSocketEvent.CHAT_MESSAGE
 
     username: str
+    user_id: str
+    color: str
     message: str
+    timestamp: datetime
+
+
+class SystemMessage(BaseWSMessage):
+    type: WebSocketEvent = WebSocketEvent.SYSTEM_MESSAGE
+
+    message: str
+    timestamp: datetime
 
 
 class JoinMessage(BaseWSMessage):

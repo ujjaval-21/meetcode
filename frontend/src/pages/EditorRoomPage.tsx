@@ -5,6 +5,7 @@ import { useRoom } from "../hooks/useRoom";
 import { useEditor } from "../hooks/useEditor";
 import { roomSocket } from "../services/websocket";
 import type * as Monaco from "monaco-editor";
+import { useAuth } from "../hooks/useAuth";
 import {
   getRoom,
   leaveRoom,
@@ -37,26 +38,37 @@ import {
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 
-interface ChatMessage {
+interface UserChatMessage {
   id: string;
+  type: "user";
+
   authorId: string;
   authorName: string;
   authorInitials: string;
   authorColor: string;
+
   text: string;
   time: string;
 }
 
+interface SystemChatMessage {
+  id: string;
+  type: "system";
+
+  text: string;
+  time: string;
+}
+
+type ChatMessage =
+  | UserChatMessage
+  | SystemChatMessage;
+
+
+
+
 // ─── Static data ──────────────────────────────────────────────────────────────
 
 
-const INITIAL_MESSAGES: ChatMessage[] = [
-  { id: "1", authorId: "1", authorName: "Alex Kim", authorInitials: "AK", authorColor: "from-violet-500 to-purple-600", text: "Hey everyone! Let's tackle the two-sum problem first.", time: "10:41 AM" },
-  { id: "2", authorId: "2", authorName: "Sara Ryo", authorInitials: "SR", authorColor: "from-blue-500 to-cyan-500", text: "Sounds good. I'll start with a brute force then we can optimise.", time: "10:42 AM" },
-  { id: "3", authorId: "3", authorName: "Marco J", authorInitials: "MJ", authorColor: "from-emerald-500 to-teal-500", text: "Hash map should give us O(n). Want me to sketch that out?", time: "10:43 AM" },
-  { id: "4", authorId: "1", authorName: "Alex Kim", authorInitials: "AK", authorColor: "from-violet-500 to-purple-600", text: "Yes, go for it Marco 👍", time: "10:43 AM" },
-  { id: "5", authorId: "4", authorName: "Priya L", authorInitials: "PL", authorColor: "from-rose-500 to-pink-500", text: "Don't forget edge cases — empty array and duplicates.", time: "10:44 AM" },
-];
 
 const LANGUAGES: ReadonlyArray<{
     label: string;
@@ -147,15 +159,49 @@ function MemberCard({participant,}: {participant: RoomParticipant;}) {
   );
 }
 
-function ChatMsg({ msg, isOwn }: { msg: ChatMessage; isOwn: boolean }) {
+function ChatMsg({
+  msg,
+  isOwn,
+}: {
+  msg: ChatMessage;
+  isOwn: boolean;
+}) {
+
+  if (msg.type === "system") {
+    return (
+      <div className="flex justify-center my-2">
+        <div className="px-3 py-1 rounded-full bg-slate-800 border border-slate-700 text-xs text-slate-400">
+          {msg.text}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={`flex gap-2.5 ${isOwn ? "flex-row-reverse" : ""}`}>
-      <Avatar initials={msg.authorInitials} color={msg.authorColor} size="sm" />
-      <div className={`flex flex-col gap-1 max-w-[75%] ${isOwn ? "items-end" : "items-start"}`}>
+      <Avatar
+        initials={msg.authorInitials}
+        color={msg.authorColor}
+        size="sm"
+      />
+
+      <div
+        className={`flex flex-col gap-1 max-w-[75%] ${
+          isOwn ? "items-end" : "items-start"
+        }`}
+      >
         <div className="flex items-center gap-1.5">
-          {!isOwn && <span className="text-xs font-medium text-slate-400">{msg.authorName}</span>}
-          <span className="text-xs text-slate-600">{msg.time}</span>
+          {!isOwn && (
+            <span className="text-xs font-medium text-slate-400">
+              {msg.authorName}
+            </span>
+          )}
+
+          <span className="text-xs text-slate-600">
+            {msg.time}
+          </span>
         </div>
+
         <div
           className={[
             "px-3 py-2 rounded-2xl text-sm leading-relaxed",
@@ -170,6 +216,48 @@ function ChatMsg({ msg, isOwn }: { msg: ChatMessage; isOwn: boolean }) {
     </div>
   );
 }
+
+
+function TypingIndicator({
+    username,
+}: {
+    username: string;
+}) {
+
+    return (
+        <div className="flex items-end gap-2 px-4 py-2">
+
+            <div className="px-3 py-2 rounded-2xl rounded-bl-sm bg-slate-800 border border-slate-700">
+
+                <div className="text-xs text-slate-400 mb-1">
+                    {username} is typing...
+                </div>
+
+                <div className="flex gap-1">
+                    <span
+                        className="w-2 h-2 rounded-full bg-slate-400 animate-bounce"
+                    />
+                    <span
+                        className="w-2 h-2 rounded-full bg-slate-400 animate-bounce"
+                        style={{
+                            animationDelay: "0.15s",
+                        }}
+                    />
+                    <span
+                        className="w-2 h-2 rounded-full bg-slate-400 animate-bounce"
+                        style={{
+                            animationDelay: "0.3s",
+                        }}
+                    />
+                </div>
+
+            </div>
+
+        </div>
+    );
+}
+
+
 
 function ActionButton({
   icon,
@@ -231,7 +319,10 @@ export default function CodingRoom() {
   const [cameraOff, setCameraOff] = useState(false);
   const [sharing, setSharing] = useState(false);
   const [chatInput, setChatInput] = useState("");
-  const [messages, setMessages] = useState<ChatMessage[]>(INITIAL_MESSAGES);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [typingUsers, setTypingUsers] = useState<string[]>([]);
+  const typingTimeoutRef = useRef<number | null>(null);
+  const isTypingRef = useRef(false);
   const [sidebarWidth, setSidebarWidth] = useState(300);
   const [isRunning, setIsRunning] = useState(false);
   const navigate = useNavigate();
@@ -242,6 +333,7 @@ export default function CodingRoom() {
     language,
     setLanguage,
   } = useEditor();
+  const { user } = useAuth();
 
   const [showLeaveDialog, setShowLeaveDialog] = useState(false);
   const [leaving, setLeaving] = useState(false);
@@ -251,6 +343,7 @@ export default function CodingRoom() {
   const dragStartWidth = useRef(0);
   const editorRef = useRef<Monaco.editor.IStandaloneCodeEditor | null>(null);
   const monacoRef = useRef<typeof Monaco | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const remoteCursorDecorations = useRef<Map<string, Monaco.editor.IEditorDecorationsCollection>>(new Map());
   const remoteCursorWidgets = useRef<Map<string, Monaco.editor.IContentWidget>>(new Map());
   const isApplyingRemoteEdit = useRef(false);
@@ -275,21 +368,35 @@ export default function CodingRoom() {
     window.addEventListener("mouseup", onUp);
   }, [sidebarWidth]);
 
+
+
   function handleSend() {
     const text = chatInput.trim();
+
     if (!text) return;
-    const newMsg: ChatMessage = {
-      id: String(Date.now()),
-      authorId: "1",
-      authorName: "Alex Kim",
-      authorInitials: "AK",
-      authorColor: "from-violet-500 to-purple-600",
-      text,
-      time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-    };
-    setMessages((prev) => [...prev, newMsg]);
+
+    roomSocket.send({
+      type: "chat_message",
+      message: text,
+    });
+
     setChatInput("");
+
+    if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+    }
+
+    if (isTypingRef.current) {
+    
+        roomSocket.send({
+            type: "stop_typing",
+        });
+      
+        isTypingRef.current = false;
+    }
   }
+
+
 
   function handleRun() {
     setIsRunning(true);
@@ -513,7 +620,70 @@ export default function CodingRoom() {
         case "language_change":
           handleLanguageChange(message);
           break;
-      
+
+        case "chat_message":
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: crypto.randomUUID(),
+              type: "user",
+            
+              authorId: message.user_id,
+            
+              authorName: message.username,
+            
+              authorInitials: message.username
+                .split(" ")
+                .map((part: string) => part[0])
+                .join("")
+                .slice(0, 2)
+                .toUpperCase(),
+            
+              authorColor: message.color,
+            
+              text: message.message,
+            
+              time: new Date(message.timestamp).toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit",
+              }),
+            },
+          ]);
+          break;
+        
+        case "system_message":
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: crypto.randomUUID(),
+              type: "system",
+            
+              text: message.message,
+            
+              time: new Date(message.timestamp).toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit",
+              }),
+            },
+          ]);
+          break;
+
+        case "typing":
+          setTypingUsers((prev) => {
+            if (prev.includes(message.username)) {
+              return prev;
+            }
+          
+            return [...prev, message.username];
+          });
+          break;
+        
+        case "stop_typing":
+          setTypingUsers((prev) =>
+            prev.filter((name) => name !== message.username)
+          );
+          break;
+
         default:
           break;
       }
@@ -597,6 +767,13 @@ export default function CodingRoom() {
       language
     );
   }, [language]);
+
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({
+      behavior: "smooth",
+    });
+  }, [messages]);
 
 
   if (loading) {
@@ -836,21 +1013,19 @@ export default function CodingRoom() {
             {/* Messages */}
             <div className="flex-1 overflow-y-auto px-4 pb-2 flex flex-col gap-4 min-h-0 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent">
               {messages.map((msg) => (
-                <ChatMsg key={msg.id} msg={msg} isOwn={msg.authorId === "1"} />
+                <ChatMsg key={msg.id} msg={msg} isOwn={
+                    msg.type === "user" &&
+                    user != null &&
+                    msg.authorId === user.id
+                }/>
               ))}
               {/* Typing indicator */}
-              <div className="flex items-center gap-2">
-                <Avatar initials="SR" color="from-blue-500 to-cyan-500" size="sm" />
-                <div className="px-3 py-2 rounded-2xl rounded-tl-sm bg-slate-800 border border-slate-700/60 flex items-center gap-1">
-                  {[0, 1, 2].map((i) => (
-                    <span
-                      key={i}
-                      className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce"
-                      style={{ animationDelay: `${i * 0.15}s` }}
-                    />
-                  ))}
-                </div>
-              </div>
+              {typingUsers.length > 0 && (
+                <TypingIndicator
+                  username={typingUsers[0]}
+                />
+              )}
+              <div ref={messagesEndRef} />
             </div>
 
             {/* Input */}
@@ -859,7 +1034,31 @@ export default function CodingRoom() {
                 <input
                   type="text"
                   value={chatInput}
-                  onChange={(e) => setChatInput(e.target.value)}
+                  onChange={(e) => {
+                    setChatInput(e.target.value);
+
+                    if (!isTypingRef.current) {
+                        roomSocket.send({
+                            type: "typing",
+                        });
+                      
+                        isTypingRef.current = true;
+                    }
+                  
+                    if (typingTimeoutRef.current) {
+                        clearTimeout(typingTimeoutRef.current);
+                    }
+                  
+                    typingTimeoutRef.current = window.setTimeout(() => {
+                    
+                        roomSocket.send({
+                            type: "stop_typing",
+                        });
+                      
+                        isTypingRef.current = false;
+                      
+                    }, 2000);
+                  }}
                   onKeyDown={(e) => e.key === "Enter" && handleSend()}
                   placeholder="Message the room…"
                   className="flex-1 bg-transparent text-sm text-white placeholder-slate-500 outline-none min-w-0"
