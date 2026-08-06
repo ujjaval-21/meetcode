@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { X } from "lucide-react";
 
 interface ConfirmDialogProps {
@@ -19,13 +20,55 @@ export default function ConfirmDialog({
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
+
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+        if (event.key === "Escape") {
+            onCancel();
+        }
+    }
+  
+    if (open) {
+        document.addEventListener(
+            "keydown",
+            handleKeyDown
+        );
+    }
+  
+    return () => {
+        document.removeEventListener(
+            "keydown",
+            handleKeyDown
+        );
+    };
+      
+  }, [open, onCancel]);
+
   if (!open) return null;
 
+
+
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm">
-
-      <div className="w-[400px] rounded-2xl bg-slate-900 border border-slate-700 shadow-2xl">
-
+    <div
+      onClick={onCancel}
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="
+          w-[400px]
+          rounded-2xl
+          border
+          border-slate-700
+          bg-slate-900
+          shadow-2xl
+        
+          animate-in
+          fade-in
+          zoom-in-95
+          duration-150
+        "
+      >
         <div className="flex items-center justify-between p-5 border-b border-slate-800">
 
           <h2 className="text-lg font-semibold text-white">

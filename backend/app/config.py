@@ -9,6 +9,9 @@ class Settings(BaseSettings):
     ALGORITHM: str
     ACCESS_TOKEN_EXPIRE_MINUTES: int
 
+    JUDGE0_URL: str
+    EXECUTOR: str
+
     class Config:
         env_file = ".env"
 

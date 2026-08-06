@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from app.db.session import engine
 from app.db.base import Base
 
-from app.api.v1 import auth, rooms, users
+from app.api.v1 import auth, rooms, users, execute
 
 from fastapi import WebSocket
 
@@ -41,6 +41,7 @@ app.add_middleware(
 app.include_router(auth.router)
 app.include_router(users.router)
 app.include_router(rooms.router)
+app.include_router(execute.router)
 
 
 @app.get("/")

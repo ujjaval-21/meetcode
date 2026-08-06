@@ -1,11 +1,11 @@
-import React from "react";
+import React, { useState } from "react";
 import { useAuth } from "../hooks/useAuth";
 import { useNavigate } from "react-router-dom";
-
+import UserAvatar from "../components/navbar/UserAvatar";
+import ConfirmDialog from "../components/ui/ConfirmDialog";
 import {
   Code2,
   Bell,
-  Settings,
   Plus,
   LogIn,
   Zap,
@@ -62,6 +62,7 @@ const FEATURE_PILLS: FeaturePill[] = [
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
+
 function NavIconButton({
   icon,
   badge,
@@ -84,26 +85,8 @@ function NavIconButton({
   );
 }
 
-function UserAvatar({username,}: {
-  username: string;
-}) {const initials = username
-  .split(" ")
-  .map((word) => word[0])
-  .join("")
-  .slice(0, 2)
-  .toUpperCase();
-  return (
-    <button
-      aria-label="User menu"
-      className="relative w-9 h-9 rounded-xl overflow-hidden ring-2 ring-slate-700 hover:ring-violet-500/60 transition-all duration-200"
-    >
-      <div className="w-full h-full bg-gradient-to-br from-violet-600 to-blue-600 flex items-center justify-center">
-        <span className="text-xs font-bold text-white">{initials}</span>
-      </div>
-      <span className="absolute bottom-0.5 right-0.5 w-2 h-2 rounded-full bg-emerald-400 ring-1 ring-slate-950" />
-    </button>
-  );
-}
+
+
 
 function ActiveDot() {
   return (
@@ -286,8 +269,10 @@ function RecentRooms() {
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function Dashboard() {
-   const navigate = useNavigate();
-   const { user } = useAuth();
+  const navigate = useNavigate();
+  const { user, logout } = useAuth();
+  const [showLogoutDialog, setShowLogoutDialog] = useState(false);
+
 
   return (
     <div className="min-h-screen bg-slate-950 text-white flex flex-col">
@@ -317,9 +302,11 @@ export default function Dashboard() {
           {/* Right controls */}
           <div className="flex items-center gap-1.5">
             <NavIconButton icon={<Bell className="w-4.5 h-4.5" />} badge label="Notifications" />
-            <NavIconButton icon={<Settings className="w-4.5 h-4.5" />} label="Settings" />
             <div className="w-px h-6 bg-slate-800 mx-1.5" />
-            <UserAvatar username={user?.username ?? "User"} />
+            <UserAvatar
+                user={user}
+                onLogoutClick={() => setShowLogoutDialog(true)}
+            />
           </div>
         </div>
       </header>
@@ -366,6 +353,19 @@ export default function Dashboard() {
           © {new Date().getFullYear()} MeetCode
         </p>
       </footer>
+      <ConfirmDialog
+          open={showLogoutDialog}
+          title="Logout"
+          message="Are you sure you want to logout from MeetCode?"
+          confirmText="Logout"
+          cancelText="Stay Logged In"
+          onCancel={() => setShowLogoutDialog(false)}
+          onConfirm={() => {
+              setShowLogoutDialog(false);
+              logout();
+              navigate("/login");
+          }}
+      />
     </div>
   );
 }

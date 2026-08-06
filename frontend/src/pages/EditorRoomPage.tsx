@@ -1,6 +1,10 @@
 import {useState, useRef, useCallback, useEffect} from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import MonacoEditor from "../components/editor/MonacoEditor";
+import EditorToolbar from "../components/editor/EditorToolbar";
+import type { ExecutionResult } from "../types/execution";
+import OutputPanel from "../components/editor/OutputPanel";
+import { executeCode } from "../services/execution";
 import { useRoom } from "../hooks/useRoom";
 import { useEditor } from "../hooks/useEditor";
 import { roomSocket } from "../services/websocket";
@@ -19,7 +23,6 @@ import type { Language } from "../types/editor";
 
 import {
   Code2,
-  Play,
   LogOut,
   Mic,
   MicOff,
@@ -27,10 +30,8 @@ import {
   VideoOff,
   Monitor,
   Send,
-  ChevronDown,
   Hash,
   Crown,
-  Terminal,
   MoreHorizontal,
   SmilePlus,
 } from "lucide-react";
@@ -324,9 +325,15 @@ export default function CodingRoom() {
   const typingTimeoutRef = useRef<number | null>(null);
   const isTypingRef = useRef(false);
   const [sidebarWidth, setSidebarWidth] = useState(300);
-  const [isRunning, setIsRunning] = useState(false);
   const navigate = useNavigate();
   const isApplyingRemoteLanguage = useRef(false);
+  const [execution, setExecution] = useState<ExecutionResult>({
+    isRunning: false,
+    output: "",
+    error: "",
+    executionTime: null,
+    memory: null,
+  });
   const {
     code,
     setCode,
@@ -398,10 +405,54 @@ export default function CodingRoom() {
 
 
 
-  function handleRun() {
-    setIsRunning(true);
-    setTimeout(() => setIsRunning(false), 1800);
+  async function handleRun() {
+    try {
+      setExecution((prev) => ({
+        ...prev,
+        isRunning: true,
+        output: "",
+        error: "",
+      }));
+    
+      const result = await executeCode({
+        language,
+        code,
+      });
+    
+      setExecution({
+          isRunning: false,
+
+          output:
+              result.stdout ??
+              result.compile_output ??
+              "",
+
+          error:
+              result.stderr ??
+              result.message ??
+              "",
+
+          executionTime:
+              result.time
+                  ? Number(result.time)
+                  : null,
+
+          memory: result.memory,
+      });
+      
+    } catch (error) {
+      console.error(error);
+    
+      setExecution({
+        isRunning: false,
+        output: "",
+        error: "Failed to execute code.",
+        executionTime: null,
+        memory: null,
+      });
+    }
   }
+
 
   const handleEditorMount = (
     editor: Monaco.editor.IStandaloneCodeEditor,
@@ -836,57 +887,17 @@ export default function CodingRoom() {
           <LiveBadge />
         </div>
 
-        {/* Center */}
-        <div className="flex items-center gap-2">
-          {/* Language dropdown */}
-          <div className="relative">
-            <button
-              onClick={() => setLangOpen((v) => !v)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 hover:border-slate-600 text-slate-300 hover:text-white text-xs font-mono font-medium transition-all duration-200"
-            >
-              {LANGUAGES.find((l) => l.value === language)?.label}
-              <ChevronDown className={`w-3 h-3 transition-transform duration-200 ${langOpen ? "rotate-180" : ""}`} />
-            </button>
-            {langOpen && (
-              <div className="absolute top-full mt-1.5 left-0 w-36 bg-slate-900 border border-slate-700 rounded-xl shadow-xl shadow-black/40 z-30 overflow-hidden py-1">
-                {LANGUAGES.map((lang) => (
-                  <button
-                    key={lang.value}
-                    onClick={() => {
-                      setLanguage(lang.value);
-                      setLangOpen(false);
-                    }}
-                    className={[
-                      "w-full text-left px-3 py-2 text-xs font-mono transition-colors",
-                      lang.value === language
-                        ? "text-violet-400 bg-violet-500/10"
-                        : "text-slate-300 hover:bg-slate-800 hover:text-white",
-                    ].join(" ")}
-                  >
-                    {lang.label}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+        {/* editor toolbar */}
+        <EditorToolbar
+          languages={LANGUAGES}
+          language={language}
+          langOpen={langOpen}
+          setLangOpen={setLangOpen}
+          setLanguage={setLanguage}
+          onRun={handleRun}
+          isRunning={execution.isRunning}
+        />
 
-          {/* Run */}
-          <button
-            onClick={handleRun}
-            disabled={isRunning}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60 text-white text-xs font-semibold transition-all duration-200 shadow shadow-emerald-500/20"
-          >
-            {isRunning ? (
-              <>
-                <Terminal className="w-3.5 h-3.5 animate-pulse" /> Running…
-              </>
-            ) : (
-              <>
-                <Play className="w-3.5 h-3.5 fill-white" /> Run
-              </>
-            )}
-          </button>
-        </div>
 
         {/* Right */}
         <div className="flex items-center gap-3">
@@ -932,13 +943,18 @@ export default function CodingRoom() {
 
         {/* ── Editor ── */}
         <div className="flex-1 flex flex-col overflow-hidden min-w-0">
-          <MonacoEditor
-            code={code}
-            language={language}
-            onMount={handleEditorMount}
-            onChange={(newCode)=>{
+          <div className="flex-1 overflow-hidden">
+            <MonacoEditor
+              code={code}
+              language={language}
+              onMount={handleEditorMount}
+              onChange={(newCode) => {
                 setCode(newCode);
-            }}
+              }}
+            />
+          </div>
+          <OutputPanel
+            execution={execution}
           />
         </div>
 
