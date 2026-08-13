@@ -12,15 +12,15 @@ import type {
 import type { Language } from "../types/editor";
 
 interface EditorContextType {
-  code: string;
   language: Language;
   theme: string;
   fontSize: number;
+  stdin: string;
 
-  setCode: Dispatch<SetStateAction<string>>;
   setLanguage: Dispatch<SetStateAction<Language>>;
   setTheme: Dispatch<SetStateAction<string>>;
   setFontSize: Dispatch<SetStateAction<number>>;
+  setStdin: Dispatch<SetStateAction<string>>;
 }
 
 
@@ -35,32 +35,24 @@ interface Props {
 export function EditorProvider({
   children,
 }: Props) {
-  const [code, setCode] = useState(
-`function hello() {
-  console.log("MeetCode 🚀");
-}`
-  );
 
-  const [language, setLanguage] =
-    useState<Language>("javascript");
-
-  const [theme, setTheme] =
-    useState("vs-dark");
-
-  const [fontSize, setFontSize] =
-    useState(15);
+  const [language, setLanguage] = useState<Language>("javascript");
+  const [theme, setTheme] = useState("vs-dark");
+  const [fontSize, setFontSize] = useState(15);
+  const [stdin, setStdin] = useState("");
 
   return (
     <EditorContext.Provider
       value={{
-        code,
         language,
         theme,
         fontSize,
-        setCode,
+        stdin,
+        
         setLanguage,
         setTheme,
         setFontSize,
+        setStdin,
       }}
     >
       {children}

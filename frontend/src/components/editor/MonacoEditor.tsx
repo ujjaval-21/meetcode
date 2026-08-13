@@ -1,12 +1,9 @@
 import Editor from "@monaco-editor/react";
 import type { OnMount } from "@monaco-editor/react";
-import type { Language } from "../../types/editor";
-
-
 
 interface MonacoEditorProps {
   code: string;
-  language: Language;
+  language: string;
   onChange: (value: string) => void;
   onMount?: OnMount;
 }
@@ -21,7 +18,7 @@ export default function MonacoEditor({
     <Editor
       height="100%"
       language={language}
-      defaultValue={code}
+      value={code}
       theme="vs-dark"
       onMount={onMount}
       onChange={(value) => {

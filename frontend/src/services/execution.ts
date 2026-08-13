@@ -47,7 +47,18 @@ export async function executeCode(
   );
 
   if (!response.ok) {
-    throw new Error("Failed to execute code.");
+    let message = "Execution failed.";
+
+    try {
+      const error = await response.json();
+      message =
+        error.detail ??
+        message;
+    } 
+    catch {
+        // Ignore JSON parsing errors
+    }
+    throw new Error(message);
   }
 
   return response.json();

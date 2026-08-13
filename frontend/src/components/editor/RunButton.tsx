@@ -3,16 +3,25 @@ import { Play } from "lucide-react";
 interface RunButtonProps {
   onRun: () => void;
   isRunning?: boolean;
+  disabled?: boolean;
 }
 
 export default function RunButton({
   onRun,
   isRunning = false,
+  disabled = false,
 }: RunButtonProps) {
+  const isDisabled = isRunning || disabled;
+
   return (
     <button
       onClick={onRun}
-      disabled={isRunning}
+      disabled={isDisabled}
+      title={
+        disabled
+          ? "This file type cannot be executed"
+          : undefined
+      }
       className="
         flex items-center gap-2
         px-4 py-1.5
@@ -33,6 +42,7 @@ export default function RunButton({
           isRunning ? "animate-pulse" : "fill-white"
         }`}
       />
+
       {isRunning ? "Running..." : "Run"}
     </button>
   );

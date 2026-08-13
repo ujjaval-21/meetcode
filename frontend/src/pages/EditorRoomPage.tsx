@@ -1,8 +1,12 @@
 import {useState, useRef, useCallback, useEffect} from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import FileExplorer from "../components/fileExplorer/FileExplorer";
+import { useFiles } from "../context/FileContext";
 import MonacoEditor from "../components/editor/MonacoEditor";
+import EditorTabs from "../components/editor/EditorTabs";
 import EditorToolbar from "../components/editor/EditorToolbar";
 import type { ExecutionResult } from "../types/execution";
+import InputPanel from "../components/editor/InputPanel";
 import OutputPanel from "../components/editor/OutputPanel";
 import { executeCode } from "../services/execution";
 import { useRoom } from "../hooks/useRoom";
@@ -10,6 +14,10 @@ import { useEditor } from "../hooks/useEditor";
 import { roomSocket } from "../services/websocket";
 import type * as Monaco from "monaco-editor";
 import { useAuth } from "../hooks/useAuth";
+import {
+  getMonacoLanguage,
+  getExecutionLanguage,
+} from "../utils/fileLanguage";
 import {
   getRoom,
   leaveRoom,
@@ -20,6 +28,10 @@ import type {
   RoomParticipant,
 } from "../services/room";
 import type { Language } from "../types/editor";
+import {
+  PanelLeftClose,
+  PanelLeftOpen,
+} from "lucide-react";
 
 import {
   Code2,
@@ -227,13 +239,10 @@ function TypingIndicator({
 
     return (
         <div className="flex items-end gap-2 px-4 py-2">
-
             <div className="px-3 py-2 rounded-2xl rounded-bl-sm bg-slate-800 border border-slate-700">
-
                 <div className="text-xs text-slate-400 mb-1">
                     {username} is typing...
                 </div>
-
                 <div className="flex gap-1">
                     <span
                         className="w-2 h-2 rounded-full bg-slate-400 animate-bounce"
@@ -251,9 +260,7 @@ function TypingIndicator({
                         }}
                     />
                 </div>
-
             </div>
-
         </div>
     );
 }
@@ -315,10 +322,10 @@ export default function CodingRoom() {
   disconnectSocket,
   } = useRoom();
   const [loading, setLoading] = useState(true);
-  const [langOpen, setLangOpen] = useState(false);
   const [muted, setMuted] = useState(false);
   const [cameraOff, setCameraOff] = useState(false);
   const [sharing, setSharing] = useState(false);
+  const explorerDragging = useRef(false);
   const [chatInput, setChatInput] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [typingUsers, setTypingUsers] = useState<string[]>([]);
@@ -326,7 +333,27 @@ export default function CodingRoom() {
   const isTypingRef = useRef(false);
   const [sidebarWidth, setSidebarWidth] = useState(300);
   const navigate = useNavigate();
-  const isApplyingRemoteLanguage = useRef(false);
+  const [explorerWidth, setExplorerWidth] = useState(() => {
+    const saved = localStorage.getItem(
+      "explorer-width"
+    );
+
+    return saved
+      ? Number(saved)
+      : 280;
+  });
+
+  const [explorerOpen, setExplorerOpen] =
+  useState(() => {
+  
+    return (
+      localStorage.getItem(
+        "explorer-open"
+      ) !== "false"
+    );
+  
+  });
+
   const [execution, setExecution] = useState<ExecutionResult>({
     isRunning: false,
     output: "",
@@ -335,16 +362,18 @@ export default function CodingRoom() {
     memory: null,
   });
   const {
-    code,
-    setCode,
-    language,
-    setLanguage,
+    stdin,
+    setStdin,
   } = useEditor();
-  const { user } = useAuth();
 
+  const {
+    activeFile,
+    setActiveFileContent,
+  } = useFiles();
+
+  const { user } = useAuth();
   const [showLeaveDialog, setShowLeaveDialog] = useState(false);
   const [leaving, setLeaving] = useState(false);
-
   const isDragging = useRef(false);
   const dragStartX = useRef(0);
   const dragStartWidth = useRef(0);
@@ -354,7 +383,6 @@ export default function CodingRoom() {
   const remoteCursorDecorations = useRef<Map<string, Monaco.editor.IEditorDecorationsCollection>>(new Map());
   const remoteCursorWidgets = useRef<Map<string, Monaco.editor.IContentWidget>>(new Map());
   const isApplyingRemoteEdit = useRef(false);
-
   const handleDragStart = useCallback((e: React.MouseEvent) => {
     isDragging.current = true;
     dragStartX.current = e.clientX;
@@ -374,6 +402,85 @@ export default function CodingRoom() {
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseup", onUp);
   }, [sidebarWidth]);
+
+  const monacoLanguage = getMonacoLanguage(
+    activeFile?.name ?? ""
+  );
+
+  const executionLanguage = activeFile
+    ? getExecutionLanguage(activeFile.name)
+    : null;
+
+
+  function handleExplorerDragStart() {
+    explorerDragging.current = true;
+  }
+
+  useEffect(() => {
+
+    function handleMouseMove(
+      e: MouseEvent
+    ) {
+
+      if (!explorerDragging.current) {
+        return;
+      }
+
+      const width = Math.max(
+        180,
+        Math.min(500, e.clientX)
+      );
+
+      setExplorerWidth(width);
+    }
+
+    function handleMouseUp() {
+      explorerDragging.current = false;
+    }
+
+    window.addEventListener(
+      "mousemove",
+      handleMouseMove
+    );
+
+    window.addEventListener(
+      "mouseup",
+      handleMouseUp
+    );
+
+    return () => {
+
+      window.removeEventListener(
+        "mousemove",
+        handleMouseMove
+      );
+
+      window.removeEventListener(
+        "mouseup",
+        handleMouseUp
+      );
+
+    };
+
+  }, []);
+
+
+  useEffect(() => {
+    localStorage.setItem(
+      "explorer-width",
+      explorerWidth.toString()
+    );
+
+  }, [explorerWidth]);
+
+  useEffect(() => {
+
+    localStorage.setItem(
+      "explorer-open",
+      explorerOpen.toString()
+    );
+
+  }, [explorerOpen]);
 
 
 
@@ -406,47 +513,74 @@ export default function CodingRoom() {
 
 
   async function handleRun() {
+    setExecution({
+      isRunning: true,
+      output: "",
+      error: "",
+      executionTime: null,
+      memory: null,
+    });
+
     try {
-      setExecution((prev) => ({
-        ...prev,
-        isRunning: true,
-        output: "",
-        error: "",
-      }));
-    
+      if (!activeFile) {
+        throw new Error("No file is currently open.");
+      }
+
+      if (!executionLanguage) {
+        throw new Error(
+          `Cannot execute "${activeFile.name}". This file type is not supported for code execution.`
+        );
+      }
+
       const result = await executeCode({
-        language,
-        code,
+        language: executionLanguage,
+        code: activeFile.content ?? "",
+        stdin,
       });
-    
+
+      let output = "";
+      let error = "";
+
+      if (result.stdout) {
+        output = result.stdout;
+      }
+
+      if (result.compile_output) {
+        error = result.compile_output;
+      }
+
+      if (result.stderr) {
+        error = result.stderr;
+      }
+
+      if (result.message) {
+        error = result.message;
+      }
+
       setExecution({
-          isRunning: false,
-
-          output:
-              result.stdout ??
-              result.compile_output ??
-              "",
-
-          error:
-              result.stderr ??
-              result.message ??
-              "",
-
-          executionTime:
-              result.time
-                  ? Number(result.time)
-                  : null,
-
-          memory: result.memory,
+        isRunning: false,
+        output,
+        error,
+        executionTime: result.time
+          ? Number(result.time)
+          : null,
+        memory: result.memory,
       });
-      
-    } catch (error) {
-      console.error(error);
-    
+
+    } catch (err: any) {
+
+      console.error(err);
+
+      let message = "Failed to execute code.";
+
+      if (err instanceof Error) {
+        message = err.message;
+      }
+
       setExecution({
         isRunning: false,
         output: "",
-        error: "Failed to execute code.",
+        error: message,
         executionTime: null,
         memory: null,
       });
@@ -643,17 +777,6 @@ export default function CodingRoom() {
   };
 
 
-  const handleLanguageChange = (message: any) => {
-    if (!message.language) {
-      return;
-    }
-
-    isApplyingRemoteLanguage.current = true;
-
-    setLanguage(message.language);
-  };
-
-
 
   useEffect(() => {
     if (!roomCode) return;
@@ -666,10 +789,6 @@ export default function CodingRoom() {
       
         case "cursor_move":
           handleCursorMove(message);
-          break;
-
-        case "language_change":
-          handleLanguageChange(message);
           break;
 
         case "chat_message":
@@ -788,36 +907,6 @@ export default function CodingRoom() {
     };
   }, []);
 
-  
-  useEffect(() => {
-    if (isApplyingRemoteLanguage.current) {
-      isApplyingRemoteLanguage.current = false;
-      return;
-    }
-
-    roomSocket.send({
-      type: "language_change",
-      language,
-    });
-  }, [language]);
-
-
-  useEffect(() => {
-    if (!editorRef.current || !monacoRef.current) {
-      return;
-    }
-  
-    const model = editorRef.current.getModel();
-  
-    if (!model) {
-      return;
-    }
-  
-    monacoRef.current.editor.setModelLanguage(
-      model,
-      language
-    );
-  }, [language]);
 
 
   useEffect(() => {
@@ -873,12 +962,28 @@ export default function CodingRoom() {
       <header className="shrink-0 h-14 flex items-center justify-between px-4 border-b border-slate-800/80 bg-slate-950/95 backdrop-blur-xl z-20">
         {/* Left */}
         <div className="flex items-center gap-4">
+          <button
+            onClick={() =>
+              setExplorerOpen(!explorerOpen)
+            }
+            className="p-2 rounded hover:bg-slate-800">
+            {explorerOpen ? (
+              <PanelLeftClose
+                className="w-4 h-4"
+              />
+            ) : (
+              <PanelLeftOpen
+                className="w-4 h-4"
+              />
+            )}
+          
+          </button>
           <div className="flex items-center gap-2">
             <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-violet-600 to-blue-600 flex items-center justify-center shadow shadow-violet-500/30">
               <Code2 className="w-3.5 h-3.5 text-white" />
             </div>
-            <span className="font-bold font-mono text-white text-sm tracking-tight hidden sm:block">MeetCode</span>
-          </div>
+              <span className="font-bold font-mono text-white text-sm tracking-tight hidden sm:block">MeetCode</span>
+            </div>
           <div className="h-5 w-px bg-slate-800" />
           <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-800">
             <Hash className="w-3 h-3 text-slate-500" />
@@ -889,13 +994,9 @@ export default function CodingRoom() {
 
         {/* editor toolbar */}
         <EditorToolbar
-          languages={LANGUAGES}
-          language={language}
-          langOpen={langOpen}
-          setLangOpen={setLangOpen}
-          setLanguage={setLanguage}
           onRun={handleRun}
           isRunning={execution.isRunning}
+          canRun={executionLanguage !== null}
         />
 
 
@@ -941,21 +1042,51 @@ export default function CodingRoom() {
       {/* ── Body ── */}
       <div className="flex-1 flex overflow-hidden">
 
+        <>
+          {explorerOpen && (
+            <>
+              <div
+                style={{
+                  width: explorerWidth,
+                  transition: explorerDragging.current
+                    ? "none"
+                    : "width 200ms ease",
+                }}
+                className="shrink-0 overflow-hidden"
+              >
+                <FileExplorer />
+              </div>
+              
+              <div
+                onMouseDown={handleExplorerDragStart}
+                onDoubleClick={() => setExplorerWidth(280)}
+                className="w-1 shrink-0 cursor-col-resize bg-slate-800 hover:bg-violet-500 transition-colors"
+              />
+            </>
+          )}
+        </>
+
         {/* ── Editor ── */}
-        <div className="flex-1 flex flex-col overflow-hidden min-w-0">
+        <div className="flex-1 flex flex-col overflow-hidden">
+          <EditorTabs />
+
           <div className="flex-1 overflow-hidden">
-            <MonacoEditor
-              code={code}
-              language={language}
-              onMount={handleEditorMount}
-              onChange={(newCode) => {
-                setCode(newCode);
-              }}
-            />
+
+              <MonacoEditor
+                code={activeFile?.content ?? ""}
+                language={monacoLanguage}
+                onMount={handleEditorMount}
+                onChange={(newCode) => {
+                    setActiveFileContent(newCode);
+                }}
+              />
+
           </div>
+              
           <OutputPanel
             execution={execution}
           />
+
         </div>
 
         {/* ── Resize handle ── */}
