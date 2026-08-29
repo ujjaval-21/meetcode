@@ -7,6 +7,13 @@ from app.models.user import User
 from app.schemas.room import CreateRoomRequest, RoomResponse
 from app.schemas.room import RoomDetailResponse
 from app.services.room_service import RoomService
+from app.services.room_file_service import RoomFileService
+from app.schemas.room_file import (
+    RoomFileResponse,
+    UpdateRoomFileContentRequest,
+    RenameRoomFileRequest,
+    DeleteRoomFileResponse,
+)
 from app.schemas.room import (
     CreateRoomRequest,
     RoomResponse,
@@ -104,6 +111,26 @@ async def leave_room(
     )
 
 
+@router.put(
+    "/files/{file_id}",
+    response_model=RoomFileResponse,
+    summary="Update file content",
+)
+async def update_file_content(
+    file_id: str,
+    payload: UpdateRoomFileContentRequest,
+    db: AsyncSession = Depends(get_db),
+):
+
+    file_service = RoomFileService(db)
+
+    return await file_service.update_file_content(
+        file_id=file_id,
+        content=payload.content,
+    )
+
+
+
 @router.get(
     "/{room_code}/participants",
     response_model=RoomParticipantsResponse,
@@ -124,4 +151,62 @@ async def get_room_participants(
     room_code,
     current_user,
     )
+
+
+@router.get(
+    "/{room_code}/files",
+    response_model=list[RoomFileResponse],
+    summary="Get room file tree",
+)
+async def get_room_files(
+    room_code: str,
+    db: AsyncSession = Depends(get_db),
+):
+    room_service = RoomService(db)
+    room = await room_service.get_room_by_code(room_code)
+
+    file_service = RoomFileService(db)
+
+    return await file_service.get_room_files(room["id"])
+
+
+@router.patch(
+    "/{room_code}/files/{file_id}",
+    response_model=RoomFileResponse,
+    summary="Rename a room file",
+)
+async def rename_room_file(
+    room_code: str,
+    file_id: str,
+    payload: RenameRoomFileRequest,
+    db: AsyncSession = Depends(get_db),
+):
+
+    file_service = RoomFileService(db)
+
+    return await file_service.rename_file(
+        file_id=file_id,
+        new_name=payload.name,
+    )
+
+
+@router.delete(
+    "/{room_code}/files/{file_id}",
+    response_model=DeleteRoomFileResponse,
+    summary="Delete a room file",
+)
+async def delete_room_file(
+    room_code: str,
+    file_id: str,
+    db: AsyncSession = Depends(get_db),
+):
+
+    file_service = RoomFileService(db)
+
+    await file_service.delete_file(file_id)
+
+    return DeleteRoomFileResponse(
+        message="File deleted successfully",
+    )
+
 

@@ -1,3 +1,4 @@
+import { roomSocket } from "../services/websocket";
 import { useEffect } from "react";
 import {
   createContext,
@@ -10,16 +11,23 @@ import type {
   ReactNode,
   SetStateAction,
 } from "react";
+import { getRoomFiles } from "../services/room";
+import { useParams } from "react-router-dom";
 
-export interface FileNode {
-  id: string;
-  name: string;
-  type: "file" | "folder";
+import {
+  buildTree,
+  findFileById,
+  addExistingFile,
+  renameTree,
+  deleteTree,
+  updateFileContent,
+} from "../lib/fileTree";
 
-  content?: string;
+import type {
+  FileNode,
+} from "../lib/fileTree";
 
-  children?: FileNode[];
-}
+
 
 interface FileContextType {
   openedFiles: FileNode[];
@@ -49,7 +57,30 @@ interface FileContextType {
   setActiveFileId: Dispatch<
     SetStateAction<string | null>
   >;
+
+  createFileRemote: (
+    parentId: string,
+    file: FileNode
+  ) => void;
+
+  createFolderRemote: (
+    parentId: string,
+    folder: FileNode
+  ) => void;
+
+  renameNodeRemote: (
+    id: string,
+    name: string
+  ) => void;
+
+  deleteNodeRemote: (
+    id: string
+  ) => void;
+
+  openFileRemote: (fileId: string) => void;
+
 }
+
 
 const FileContext =
   createContext<FileContextType | undefined>(
@@ -61,92 +92,51 @@ export function FileProvider({
 }: {
   children: ReactNode;
 }) {
-
-  const [files, setFiles] = useState<FileNode[]>([
-    {
-      id: "1",
-      name: "src",
-      type: "folder",
-      children: [
-        {
-          id: "2",
-          name: "main.py",
-          type: "file",
-          content: 'print("Hello MeetCode")',
-        },
-        {
-          id: "3",
-          name: "utils.py",
-          type: "file",
-          content: "",
-        },
-      ],
-    },
-    {
-      id: "4",
-      name: "README.md",
-      type: "file",
-      content: "# MeetCode",
-    },
-  ]);
-
-  const [activeFileId, setActiveFileId] =
-    useState<string | null>("2");
-
-  const [openedFiles, setOpenedFiles] =
-    useState<FileNode[]>([]);
-
-  const [
-    editingNodeId,
-    setEditingNodeId,
-  ] = useState<string | null>(null);
-
-  
-  function generateId() {
-    return crypto.randomUUID();
-  }
+  const { roomCode } = useParams();
+  const [files, setFiles] = useState<FileNode[]>([]);
+  const [activeFileId, setActiveFileId] = useState<string | null>(null);
+  const [openedFiles, setOpenedFiles] = useState<FileNode[]>([]);
+  const [editingNodeId,setEditingNodeId ] = useState<string | null>(null);
+  const [pendingOpenFileId, setPendingOpenFileId] = useState<string | null>(null);
 
 
-  function findFileById(
-    nodes: FileNode[],
-    id: string
-  ): FileNode | null {
 
-    for (const node of nodes) {
-
-      if (node.id === id)
-        return node;
-
-      if (node.children) {
-
-        const result = findFileById(
-          node.children,
-          id
-        );
-
-        if (result) {
-          return result;
-        }
-      }
-    }
-
-    return null;
-  }
-
-
-  function openFile(file: FileNode) {
+  function openFile(
+    file: FileNode,
+    broadcast = true
+  ) {
     setOpenedFiles((prev) => {
-
       const exists = prev.some(
         (f) => f.id === file.id
       );
+
       if (exists) {
         return prev;
       }
+
       return [...prev, file];
     });
 
     setActiveFileId(file.id);
+
+    if (broadcast) {
+      roomSocket.send({
+        type: "file_open",
+        fileId: file.id,
+      });
+    }
+  }
+
+
+  function openFileRemote(fileId: string) {
+    const file = findFileById(files, fileId);
+
+    if (!file) {
+        setPendingOpenFileId(fileId);
+        return;
+    }
+
+    openFile(file, false);
   }
 
 
@@ -175,159 +165,66 @@ export function FileProvider({
   }
 
 
-  function updateFileContent(
-    nodes: FileNode[],
-    id: string,
-    content: string
-  ): FileNode[] {
-    return nodes.map((node) => {
-
-      if (node.id === id) {
-        return {
-          ...node,
-          content,
-        };
-      }
-
-      if (node.children) {
-        return {
-          ...node,
-          children: updateFileContent(
-            node.children,
-            id,
-            content
-          ),
-        };
-      }
-      return node;
-    });
-  }
-
-
-  function addFile(
-    nodes: FileNode[],
+  function createFileRemote(
     parentId: string,
-    id: string
-  ): FileNode[] {
-    return nodes.map((node) => {
-      if (
-        node.id === parentId &&
-        node.type === "folder"
-      ) {
-        return {
-          ...node,
-          children: [
-            ...(node.children ?? []),
-            {
-              id,
-              name: "new_file.py",
-              type: "file",
-              content: "",
-            },
-          ],
-        };
-      }
-
-      if (node.children) {
-        return {
-          ...node,
-          children: addFile(
-            node.children,
-            parentId,
-            id
-          ),
-        };
-      }
-
-      return node;
-    });
+    file: FileNode
+  ) {
+    setFiles((prev) =>
+      addExistingFile(prev, parentId, file)
+    );
   }
 
 
-  function addFolder(
-    nodes: FileNode[],
+  function createFolderRemote(
     parentId: string,
-    id: string
-  ): FileNode[] {
-    return nodes.map((node) => {
-      if (
-        node.id === parentId &&
-        node.type === "folder"
-      ) {
-        return {
-          ...node,
-          children: [
-            ...(node.children ?? []),
-            {
-              id,
-              name: "New Folder",
-              type: "folder",
-              children: [],
-            },
-          ],
-        };
-      }
-
-      if (node.children) {
-        return {
-          ...node,
-          children: addFolder(
-            node.children,
-            parentId,
-            id
-          ),
-        };
-      }
-
-      return node;
-    });
+    folder: FileNode
+  ) {
+    setFiles((prev) =>
+      addExistingFile(
+        prev,
+        parentId,
+        folder
+      )
+    );
   }
 
 
-  function renameTree(
-    nodes: FileNode[],
+  function renameNodeRemote(
     id: string,
     name: string
-  ): FileNode[] {
-    return nodes.map((node) => {
-      if (node.id === id) {
-        return {
-          ...node,
-          name,
-        };
-      }
-
-      if (node.children) {
-        return {
-          ...node,
-          children: renameTree(
-            node.children,
-            id,
-            name
-          ),
-        };
-      }
-
-      return node;
-    });
+  ) {
+    setFiles((prev) =>
+      renameTree(prev, id, name)
+    );
+    setOpenedFiles(prev =>
+      prev.map(file =>
+        file.id === id
+          ? {
+              ...file,
+              name,
+            }
+          : file
+      )
+    );
   }
 
 
-  function deleteTree(
-    nodes: FileNode[],
+  function deleteNodeRemote(
     id: string
-  ): FileNode[] {
-    return nodes
-      .filter((node) => node.id !== id)
-      .map((node) => ({
-        ...node,
-        children: node.children
-          ? deleteTree(
-              node.children,
-              id
-            )
-          : undefined,
-      }));
+  ) {
+
+    setFiles((prev) =>
+      deleteTree(prev, id)
+    );
+
+    setOpenedFiles((prev) =>
+      prev.filter((f) => f.id !== id)
+    );
+
+    if (activeFileId === id) {
+      setActiveFileId(null);
+    }
+
   }
 
 
@@ -353,49 +250,87 @@ export function FileProvider({
 
 
   function createFile(parentId: string) {
-    const id = generateId();
 
-    setFiles((prev) =>
-      addFile(prev, parentId, id)
-    );
-
-    setEditingNodeId(id);
+    roomSocket.send({
+        type: "file_create",
+        parentId,
+        node: {
+            name: "new_file.py",
+            type: "file",
+            content: "",
+        },
+    });
   }
 
 
   function createFolder(parentId: string) {
-    const id = generateId();
 
-    setFiles((prev) =>
-      addFolder(prev, parentId, id)
-    );
-
-    setEditingNodeId(id);
+    roomSocket.send({
+        type: "file_create",
+        parentId,
+        node: {
+            name: "New Folder",
+            type: "folder",
+            children: [],
+        },
+    });
   }
 
-  function renameNode(id: string, name: string) {
-    setFiles((prev) =>
-      renameTree(prev, id, name)
-    );
+  
+  function renameNode(
+    id: string,
+    name: string
+  ) {
+
+    renameNodeRemote(id, name);
+
+    roomSocket.send({
+      type: "file_rename",
+      id,
+      name,
+    });
+
   }
 
   function deleteNode(id: string) {
-    setFiles((prev) =>
-      deleteTree(prev, id)
-    );
+    deleteNodeRemote(id);
 
-    setOpenedFiles((prev) =>
-      prev.filter((f) => f.id !== id)
-    );
-
-    if (activeFileId === id) {
-      setActiveFileId(null);
-    }
+    roomSocket.send({
+      type: "file_delete",
+      id,
+    });
   }
 
+  
+  useEffect(() => {
+    console.log("roomCode =", roomCode);
+
+    if (!roomCode) {
+      console.log("No roomCode");
+      return;
+    }
+
+    const currentRoomCode = roomCode;
+
+    async function loadFiles() {
+      console.log("Calling getRoomFiles...");
+
+      try {
+        const roomFiles = await getRoomFiles(currentRoomCode);
+
+        console.log("API returned:", roomFiles);
+
+        setFiles(buildTree(roomFiles));
+      } catch (err) {
+        console.error("Failed to load room files", err);
+      }
+    }
+
+    loadFiles();
+  }, [roomCode]);
 
 
-
+  
   useEffect(() => {
     if (
       activeFile &&
@@ -406,6 +341,65 @@ export function FileProvider({
 
     }
   }, []);
+
+
+  useEffect(() => {
+    const listener = (message: any) => {
+      switch (message.type) {
+        case "file_create":
+          if (message.node.type === "file") {
+              createFileRemote(
+                  message.parentId,
+                  message.node
+              );            
+              // Automatically open the new file
+              openFileRemote(message.node.id);            
+          } else {          
+              createFolderRemote(
+                  message.parentId,
+                  message.node
+              );            
+          }        
+          break;
+
+        case "file_rename":
+          renameNodeRemote(
+              message.id,
+              message.name
+          );
+          break;
+
+        case "file_delete":
+          deleteNodeRemote(message.id);
+          break;
+
+        case "file_open":
+          openFileRemote(message.fileId);
+          break;
+      }
+    };
+
+    roomSocket.addListener(listener);
+
+    return () => {
+        roomSocket.removeListener(listener);
+    };
+
+  }, []);
+
+
+  useEffect(() => {
+    if (!pendingOpenFileId) return;
+
+    const file = findFileById(files, pendingOpenFileId);
+
+    if (!file) return;
+
+    openFile(file, false);
+    setPendingOpenFileId(null);
+
+  }, [files, pendingOpenFileId]);
+
 
 
   return (
@@ -426,6 +420,11 @@ export function FileProvider({
         deleteNode,
         editingNodeId,
         setEditingNodeId,
+        createFileRemote,
+        createFolderRemote,
+        renameNodeRemote,
+        deleteNodeRemote,
+        openFileRemote,
       }}
     >
       {children}

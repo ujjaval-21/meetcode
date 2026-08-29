@@ -11,6 +11,8 @@ from app.db.base import Base
 if TYPE_CHECKING:
     from app.models.participant import Participant
     from app.models.user import User
+    from app.models.room_file import RoomFile
+    
 
 
 class Room(Base):
@@ -69,7 +71,7 @@ class Room(Base):
     "User",
     back_populates="hosted_rooms",
     lazy="select",
-)
+    )
 
     # All participants currently in the room.
     participants: Mapped[list["Participant"]] = relationship(
@@ -77,4 +79,11 @@ class Room(Base):
         back_populates="room",
         cascade="all, delete-orphan",
         lazy="select",
+    )
+
+    files: Mapped[list["RoomFile"]] = relationship(
+    "RoomFile",
+    back_populates="room",
+    cascade="all, delete-orphan",
+    lazy="select",
     )

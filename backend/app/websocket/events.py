@@ -25,6 +25,14 @@ class WebSocketEvent(StrEnum):
     LANGUAGE_CHANGE = "language_change"
 
 
+    FILE_CREATE = "file_create"
+    FILE_RENAME = "file_rename"
+    FILE_DELETE = "file_delete"
+    FILE_OPEN = "file_open"
+    FILE_CONTENT_UPDATE = "file_content_update"
+    
+
+
     # Presence
     USER_JOINED = "user_joined"
     USER_LEFT = "user_left"
@@ -37,5 +45,6 @@ class WebSocketEvent(StrEnum):
 
     # Errors
     ERROR = "error"
+
 
 

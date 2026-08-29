@@ -10,11 +10,9 @@ import "./index.css";
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <BrowserRouter>
     <AuthProvider>
-      <FileProvider>
-        <EditorProvider>
-          <App />
-        </EditorProvider>
-      </FileProvider>
+      <EditorProvider>
+        <App />
+      </EditorProvider>
     </AuthProvider>
   </BrowserRouter>
 );

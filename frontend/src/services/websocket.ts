@@ -58,6 +58,36 @@ export class RoomSocket {
     this.socket.send(JSON.stringify(data));
   }
 
+  sendFileCreate(payload: any) {
+    this.send({
+      type: "FILE_CREATE",
+      ...payload,
+    });
+  }
+  
+  sendFileRename(payload: any) {
+    this.send({
+      type: "FILE_RENAME",
+      ...payload,
+    });
+  }
+  
+  sendFileDelete(payload: any) {
+    this.send({
+      type: "FILE_DELETE",
+      ...payload,
+    });
+  }
+  
+  sendFileOpen(payload: any) {
+    this.send({
+      type: "FILE_OPEN",
+      ...payload,
+    });
+  }
+
+
+
   disconnect() {
     this.listeners = [];
     this.socket?.close();

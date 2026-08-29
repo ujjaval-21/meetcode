@@ -1,8 +1,6 @@
 from datetime import datetime
 from typing import Any
-
 from pydantic import BaseModel, ConfigDict, Field
-
 from app.websocket.events import WebSocketEvent
 
 
@@ -25,7 +23,6 @@ class BaseWSMessage(BaseModel):
     """
 
     type: WebSocketEvent
-
     model_config = ConfigDict(use_enum_values=True)
 
 
@@ -76,7 +73,6 @@ class CursorMessage(BaseWSMessage):
     username: str
 
     line: int = Field(..., ge=1)
-
     column: int = Field(..., ge=1)
 
 
@@ -100,7 +96,5 @@ class BroadcastMessage(BaseModel):
     """
 
     event: WebSocketEvent
-
     payload: dict[str, Any]
-
     timestamp: datetime

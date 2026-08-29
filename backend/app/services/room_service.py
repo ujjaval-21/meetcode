@@ -13,6 +13,8 @@ from app.models.participant import Participant
 from app.schemas.room import CreateRoomRequest, MessageResponse
 from app.schemas.room import RoomParticipantsResponse, RoomParticipantResponse
 from app.utils.participant_colors import get_participant_color
+from app.models.room_file import RoomFile
+from app.services.room_file_service import RoomFileService
 
 
 ROOM_CODE_LENGTH = 8
@@ -81,7 +83,17 @@ class RoomService:
             try:
                 await self.db.commit()
                 await self.db.refresh(new_room)
-
+                
+                # Create root project folder
+                room_file_service = RoomFileService(self.db)
+                
+                await room_file_service.create_file(
+                    room=new_room,
+                    parent_id=None,
+                    name=new_room.title,
+                    type="folder",
+                )
+                
                 host_participant = Participant(
                     room_id=new_room.id,
                     user_id=current_user.id,

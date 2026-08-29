@@ -7,6 +7,7 @@ from app.websocket.auth import authenticate_websocket
 from app.websocket.events import WebSocketEvent
 from app.websocket.manager import manager
 from app.utils.participant_colors import get_participant_color
+from app.services.room_file_service import RoomFileService
 
 
 class WebSocketHandler:
@@ -100,6 +101,68 @@ class WebSocketHandler:
                         exclude_user=user.id,
                     )
 
+                elif message_type == WebSocketEvent.FILE_CREATE:
+
+                    room_file_service = RoomFileService(db)
+                    room_file = await room_file_service.create_file(
+                        room=room,
+                        parent_id=data.get("parentId"),
+                        name=data["node"]["name"],
+                        type=data["node"]["type"],
+                        content=data["node"].get("content", ""),
+                    )
+
+                    await manager.broadcast(
+                        room.room_code,
+                        {
+                            "type": WebSocketEvent.FILE_CREATE,
+                            "parentId": data.get("parentId"),
+                            "node": {
+                                "id": str(room_file.id),
+                                "name": room_file.name,
+                                "type": room_file.type,
+                                "content": room_file.content,
+                            },
+                        },
+                    )
+
+                elif message_type == WebSocketEvent.FILE_RENAME:          
+                    room_file_service = RoomFileService(db)
+
+                    room_file = await room_file_service.rename_file(
+                        file_id=data["id"],
+                        new_name=data["name"],
+                    )
+                    await manager.broadcast(
+                        room.room_code,
+                        {
+                            "type": WebSocketEvent.FILE_RENAME,
+                            "id": str(room_file.id),
+                            "name": room_file.name,
+                        },
+                    )
+
+                elif message_type == WebSocketEvent.FILE_DELETE:
+                    room_file_service = RoomFileService(db)
+
+                    await room_file_service.delete_file(
+                        file_id=data["id"],
+                    )
+                    await manager.broadcast(
+                        room.room_code,
+                        {
+                            "type": WebSocketEvent.FILE_DELETE,
+                            "id": data["id"],
+                        },
+                    )
+
+                elif message_type == WebSocketEvent.FILE_OPEN:
+                    await manager.broadcast(
+                        room.room_code,
+                        data,
+                        exclude_user=user.id,
+                    )
+
                 elif message_type == WebSocketEvent.CHAT_MESSAGE:
                     await manager.broadcast(
                         room.room_code,
@@ -135,6 +198,24 @@ class WebSocketHandler:
                         exclude_user=user.id,
                     )
 
+                elif message_type == WebSocketEvent.FILE_CONTENT_UPDATE:
+                    room_file_service = RoomFileService(db)
+
+                    room_file = await room_file_service.update_file_content(
+                        file_id=data["fileId"],
+                        content=data["content"],
+                    )
+
+                    await manager.broadcast(
+                        room.room_code,
+                        {
+                            "type": WebSocketEvent.FILE_CONTENT_UPDATE,
+                            "fileId": str(room_file.id),
+                            "content": room_file.content,
+                        },
+                        exclude_user=user.id,
+                    )
+                
                 else:
                     await manager.broadcast(
                         room.room_code,
@@ -182,3 +263,4 @@ class WebSocketHandler:
 
 
 handler = WebSocketHandler()
+

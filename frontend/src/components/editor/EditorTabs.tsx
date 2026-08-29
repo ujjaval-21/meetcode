@@ -5,9 +5,9 @@ export default function EditorTabs() {
   const {
     openedFiles,
     activeFileId,
-    setActiveFileId,
+    openFile,
     closeFile,
-  } = useFiles();
+} = useFiles();
 
   return (
     <div className="flex items-center bg-slate-900 border-b border-slate-800 overflow-x-auto">
@@ -21,9 +21,7 @@ export default function EditorTabs() {
 
           <div
             key={file.id}
-            onClick={() =>
-              setActiveFileId(file.id)
-            }
+            onClick={() => openFile(file)}
             className={`flex items-center gap-2 px-4 h-10 cursor-pointer border-r border-slate-800 whitespace-nowrap transition-colors
             ${
               active

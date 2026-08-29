@@ -4,6 +4,7 @@ import FileNode from "./FileNode";
 export default function FileExplorer() {
 
   const { files } = useFiles();
+  console.log(files);
 
   return (
     <div className="h-full bg-slate-900 border-r border-slate-800">

@@ -4,6 +4,7 @@ import type { OnMount } from "@monaco-editor/react";
 interface MonacoEditorProps {
   code: string;
   language: string;
+  fileId: string;
   onChange: (value: string) => void;
   onMount?: OnMount;
 }
@@ -11,12 +12,15 @@ interface MonacoEditorProps {
 export default function MonacoEditor({
   code,
   language,
+  fileId,
   onChange,
   onMount,
 }: MonacoEditorProps) {
   return (
     <Editor
       height="100%"
+      path={fileId}
+      saveViewState={true}
       language={language}
       value={code}
       theme="vs-dark"

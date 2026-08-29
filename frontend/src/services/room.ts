@@ -129,3 +129,57 @@ export async function leaveRoom(
 
   return response.data;
 }
+
+
+export interface RoomFile {
+  id: string;
+  room_id: string;
+  parent_id: string | null;
+  name: string;
+  type: "file" | "folder";
+  content: string | null;
+}
+
+export async function getRoomFiles(
+  roomCode: string
+): Promise<RoomFile[]> {
+
+  const response = await api.get<RoomFile[]>(
+    `/rooms/${roomCode}/files`
+  );
+
+  return response.data;
+}
+
+
+export interface RenameRoomFileRequest {
+  name: string;
+}
+
+export async function renameRoomFile(
+  roomCode: string,
+  fileId: string,
+  name: string,
+): Promise<RoomFile> {
+
+  const response = await api.patch<RoomFile>(
+    `/rooms/${roomCode}/files/${fileId}`,
+    {
+      name,
+    },
+  );
+
+  return response.data;
+}
+
+
+export async function deleteRoomFile(
+  roomCode: string,
+  fileId: string,
+): Promise<void> {
+
+  await api.delete(
+    `/rooms/${roomCode}/files/${fileId}`,
+  );
+}
+

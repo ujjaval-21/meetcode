@@ -2,6 +2,7 @@ import { Routes, Route } from "react-router-dom";
 import ProtectedRoute from "../components/auth/ProtectedRoute";
 import PublicRoute from "../components/auth/PublicRoute";
 import { RoomProvider } from "../context/RoomContext";
+import { FileProvider } from "../context/FileContext";
 
 import LandingPage from "../pages/LandingPage";
 import LoginPage from "../pages/LoginPage";
@@ -11,6 +12,7 @@ import NotFoundPage from "../pages/NotFound";
 import CreateRoomPage from "../pages/CreateRoomPage";
 import JoinRoomPage from "../pages/JoinRoomPage";
 import CodingRoom from "../pages/EditorRoomPage";
+
 
 
 export default function AppRoutes() {
@@ -55,13 +57,18 @@ export default function AppRoutes() {
       }/>
  
 
-      <Route path="/room/:roomCode" element={
-        <ProtectedRoute>
-          <RoomProvider>
-            <CodingRoom />
-          </RoomProvider>
-        </ProtectedRoute>
-      }/>
+      <Route
+        path="/room/:roomCode"
+        element={
+          <ProtectedRoute>
+            <RoomProvider>
+              <FileProvider>
+                <CodingRoom />
+              </FileProvider>
+            </RoomProvider>
+          </ProtectedRoute>
+        }
+      />
 
       <Route path="*" element={<NotFoundPage />} />
 

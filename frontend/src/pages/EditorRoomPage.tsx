@@ -6,7 +6,6 @@ import MonacoEditor from "../components/editor/MonacoEditor";
 import EditorTabs from "../components/editor/EditorTabs";
 import EditorToolbar from "../components/editor/EditorToolbar";
 import type { ExecutionResult } from "../types/execution";
-import InputPanel from "../components/editor/InputPanel";
 import OutputPanel from "../components/editor/OutputPanel";
 import { executeCode } from "../services/execution";
 import { useRoom } from "../hooks/useRoom";
@@ -24,14 +23,18 @@ import {
 } from "../services/room";
 import { getToken } from "../services/storage";
 import ConfirmDialog from "../components/ui/ConfirmDialog";
-import type {
-  RoomParticipant,
-} from "../services/room";
-import type { Language } from "../types/editor";
 import {
   PanelLeftClose,
   PanelLeftOpen,
 } from "lucide-react";
+
+import Avatar from "../components/room/Avatar";
+import LiveBadge from "../components/room/LiveBadge";
+import MemberCard from "../components/room/MemberCard";
+import ActionButton from "../components/room/ActionButton";
+
+import type { ChatMessage } from "../types/chat";
+import ChatPanel from "../components/room/ChatPanel";
 
 import {
   Code2,
@@ -41,267 +44,8 @@ import {
   Video,
   VideoOff,
   Monitor,
-  Send,
   Hash,
-  Crown,
-  MoreHorizontal,
-  SmilePlus,
 } from "lucide-react";
-
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-
-interface UserChatMessage {
-  id: string;
-  type: "user";
-
-  authorId: string;
-  authorName: string;
-  authorInitials: string;
-  authorColor: string;
-
-  text: string;
-  time: string;
-}
-
-interface SystemChatMessage {
-  id: string;
-  type: "system";
-
-  text: string;
-  time: string;
-}
-
-type ChatMessage =
-  | UserChatMessage
-  | SystemChatMessage;
-
-
-
-
-// ─── Static data ──────────────────────────────────────────────────────────────
-
-
-
-const LANGUAGES: ReadonlyArray<{
-    label: string;
-    value: Language;
-}> = [
-  { label: "JavaScript", value: "javascript" },
-  { label: "TypeScript", value: "typescript" },
-  { label: "Python", value: "python" },
-  { label: "Java", value: "java" },
-  { label: "C++", value: "cpp" },
-  { label: "Go", value: "go" },
-  { label: "Rust", value: "rust" },
-];
-
-
-// ─── Sub-components ───────────────────────────────────────────────────────────
-
-function Avatar({
-  initials,
-  color,
-  size = "md",
-  ring,
-}: {
-  initials: string;
-  color: string;
-  size?: "sm" | "md" | "lg";
-  ring?: string;
-}) {
-  const sizes = { sm: "w-7 h-7 text-xs", md: "w-9 h-9 text-xs", lg: "w-11 h-11 text-sm" };
-  return (
-    <div
-      style={{
-        backgroundColor: color,
-      }}
-      className={[
-        "flex items-center justify-center rounded-xl font-bold text-white shrink-0",
-        sizes[size],
-        ring ?? "",
-      ].join(" ")}
-    >
-      {initials}
-    </div>
-  );
-}
-
-function LiveBadge() {
-  return (
-    <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20">
-      <span className="relative flex h-2 w-2">
-        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60" />
-        <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400" />
-      </span>
-      <span className="text-xs font-semibold text-emerald-400">Live</span>
-    </div>
-  );
-}
-
-function MemberCard({participant,}: {participant: RoomParticipant;}) {
-  const initials = participant.username
-    .split(" ")
-    .map((part) => part[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
-
-  return (
-    <div className="flex items-center justify-between px-3 py-2.5 rounded-xl bg-slate-800/50 border border-slate-700/60 hover:border-slate-600/60 transition-colors">
-      <div className="flex items-center gap-3">
-        <Avatar
-          initials={initials}
-          color={participant.color}
-        />
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="text-white font-medium">
-              {participant.username}
-            </span>
-            {participant.is_host && (
-              <Crown className="w-3 h-3 text-yellow-400" />
-            )}
-          </div>
-          <span className="text-xs text-slate-500">
-            {participant.is_host ? "Host" : "Participant"}
-          </span>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function ChatMsg({
-  msg,
-  isOwn,
-}: {
-  msg: ChatMessage;
-  isOwn: boolean;
-}) {
-
-  if (msg.type === "system") {
-    return (
-      <div className="flex justify-center my-2">
-        <div className="px-3 py-1 rounded-full bg-slate-800 border border-slate-700 text-xs text-slate-400">
-          {msg.text}
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className={`flex gap-2.5 ${isOwn ? "flex-row-reverse" : ""}`}>
-      <Avatar
-        initials={msg.authorInitials}
-        color={msg.authorColor}
-        size="sm"
-      />
-
-      <div
-        className={`flex flex-col gap-1 max-w-[75%] ${
-          isOwn ? "items-end" : "items-start"
-        }`}
-      >
-        <div className="flex items-center gap-1.5">
-          {!isOwn && (
-            <span className="text-xs font-medium text-slate-400">
-              {msg.authorName}
-            </span>
-          )}
-
-          <span className="text-xs text-slate-600">
-            {msg.time}
-          </span>
-        </div>
-
-        <div
-          className={[
-            "px-3 py-2 rounded-2xl text-sm leading-relaxed",
-            isOwn
-              ? "bg-gradient-to-br from-violet-600/80 to-blue-600/80 text-white rounded-tr-sm"
-              : "bg-slate-800 text-slate-200 rounded-tl-sm border border-slate-700/60",
-          ].join(" ")}
-        >
-          {msg.text}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-
-function TypingIndicator({
-    username,
-}: {
-    username: string;
-}) {
-
-    return (
-        <div className="flex items-end gap-2 px-4 py-2">
-            <div className="px-3 py-2 rounded-2xl rounded-bl-sm bg-slate-800 border border-slate-700">
-                <div className="text-xs text-slate-400 mb-1">
-                    {username} is typing...
-                </div>
-                <div className="flex gap-1">
-                    <span
-                        className="w-2 h-2 rounded-full bg-slate-400 animate-bounce"
-                    />
-                    <span
-                        className="w-2 h-2 rounded-full bg-slate-400 animate-bounce"
-                        style={{
-                            animationDelay: "0.15s",
-                        }}
-                    />
-                    <span
-                        className="w-2 h-2 rounded-full bg-slate-400 animate-bounce"
-                        style={{
-                            animationDelay: "0.3s",
-                        }}
-                    />
-                </div>
-            </div>
-        </div>
-    );
-}
-
-
-
-function ActionButton({
-  icon,
-  activeIcon,
-  label,
-  active,
-  onClick,
-  variant = "default",
-}: {
-  icon: React.ReactNode;
-  activeIcon?: React.ReactNode;
-  label: string;
-  active: boolean;
-  onClick: () => void;
-  variant?: "default" | "danger";
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-label={label}
-      title={label}
-      className={[
-        "flex-1 flex flex-col items-center gap-1.5 py-3 rounded-xl border transition-all duration-200 group",
-        active
-          ? variant === "danger"
-            ? "bg-red-500/10 border-red-500/30 text-red-400 hover:bg-red-500/20"
-            : "bg-slate-700/80 border-slate-600 text-white"
-          : "bg-slate-800/60 border-slate-700/60 text-slate-400 hover:border-slate-600 hover:text-slate-200 hover:bg-slate-800",
-      ].join(" ")}
-    >
-      <span className="w-5 h-5">{active && activeIcon ? activeIcon : icon}</span>
-      <span className="text-xs font-medium leading-none">{label}</span>
-    </button>
-  );
-}
 
 
 
@@ -363,7 +107,6 @@ export default function CodingRoom() {
   });
   const {
     stdin,
-    setStdin,
   } = useEditor();
 
   const {
@@ -379,6 +122,7 @@ export default function CodingRoom() {
   const dragStartWidth = useRef(0);
   const editorRef = useRef<Monaco.editor.IStandaloneCodeEditor | null>(null);
   const monacoRef = useRef<typeof Monaco | null>(null);
+  const activeFileRef = useRef(activeFile);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const remoteCursorDecorations = useRef<Map<string, Monaco.editor.IEditorDecorationsCollection>>(new Map());
   const remoteCursorWidgets = useRef<Map<string, Monaco.editor.IContentWidget>>(new Map());
@@ -415,6 +159,13 @@ export default function CodingRoom() {
   function handleExplorerDragStart() {
     explorerDragging.current = true;
   }
+
+
+  useEffect(() => {
+      activeFileRef.current = activeFile;
+  }, [activeFile]);
+
+
 
   useEffect(() => {
 
@@ -618,24 +369,30 @@ export default function CodingRoom() {
         return;
       }
 
-      roomSocket.send({
-
-        type: "code_change",
-
-        changes: event.changes.map((change) => ({
-
+      const changes = event.changes.map((change) => ({
           range: {
-            startLineNumber: change.range.startLineNumber,
-            startColumn: change.range.startColumn,
-            endLineNumber: change.range.endLineNumber,
-            endColumn: change.range.endColumn,
+              startLineNumber: change.range.startLineNumber,
+              startColumn: change.range.startColumn,
+              endLineNumber: change.range.endLineNumber,
+              endColumn: change.range.endColumn,
           },
-
           text: change.text,
+      }));
 
-        })),
-
+      roomSocket.send({
+          type: "code_change",
+          changes,
       });
+
+      const file = activeFileRef.current;
+          
+      if (file) {
+          roomSocket.send({
+              type: "file_content_update",
+              fileId: file.id,
+              content: editor.getValue(),
+          });
+      }
 
     });
 
@@ -785,6 +542,15 @@ export default function CodingRoom() {
       switch (message.type) {
         case "code_change":
           handleCodeChange(message);
+          break;
+        
+        case "file_content_update":
+          if (
+              activeFile &&
+              message.fileId === activeFile.id
+          ) {
+              setActiveFileContent(message.content);
+          }
           break;
       
         case "cursor_move":
@@ -1073,6 +839,7 @@ export default function CodingRoom() {
           <div className="flex-1 overflow-hidden">
 
               <MonacoEditor
+                fileId={activeFile?.id ?? "empty"}
                 code={activeFile?.content ?? ""}
                 language={monacoLanguage}
                 onMount={handleEditorMount}
@@ -1120,7 +887,7 @@ export default function CodingRoom() {
           </div>
 
           {/* ── Controls ── */}
-          <div className="shrink-0 px-4 py-3 border-b border-slate-800/80">
+          <div className="flex-1 flex flex-col px-4 py-3 min-h-0">
             <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-3">Controls</p>
             <div className="flex gap-2">
               <ActionButton
@@ -1146,88 +913,37 @@ export default function CodingRoom() {
                 onClick={() => setSharing((v) => !v)}
               />
             </div>
-          </div>
-
-          {/* ── Chat ── */}
-          <div className="flex-1 flex flex-col min-h-0">
-            <div className="shrink-0 px-4 pt-3 pb-2 flex items-center justify-between">
-              <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Chat</h2>
-              <button className="text-slate-600 hover:text-slate-400 transition-colors">
-                <MoreHorizontal className="w-4 h-4" />
-              </button>
-            </div>
-
-            {/* Messages */}
-            <div className="flex-1 overflow-y-auto px-4 pb-2 flex flex-col gap-4 min-h-0 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent">
-              {messages.map((msg) => (
-                <ChatMsg key={msg.id} msg={msg} isOwn={
-                    msg.type === "user" &&
-                    user != null &&
-                    msg.authorId === user.id
-                }/>
-              ))}
-              {/* Typing indicator */}
-              {typingUsers.length > 0 && (
-                <TypingIndicator
-                  username={typingUsers[0]}
-                />
-              )}
-              <div ref={messagesEndRef} />
-            </div>
-
-            {/* Input */}
-            <div className="shrink-0 px-4 pb-4 pt-2 border-t border-slate-800/80">
-              <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-800/80 border border-slate-700/60 focus-within:border-violet-500/50 transition-colors">
-                <input
-                  type="text"
-                  value={chatInput}
-                  onChange={(e) => {
-                    setChatInput(e.target.value);
-
-                    if (!isTypingRef.current) {
-                        roomSocket.send({
-                            type: "typing",
-                        });
-                      
-                        isTypingRef.current = true;
-                    }
-                  
-                    if (typingTimeoutRef.current) {
-                        clearTimeout(typingTimeoutRef.current);
-                    }
-                  
-                    typingTimeoutRef.current = window.setTimeout(() => {
+          <ChatPanel
+              messages={messages}
+              typingUsers={typingUsers}
+              currentUserId={user?.id}
+              chatInput={chatInput}
+              onChatInputChange={(value: string) => {
+                  setChatInput(value);
+              
+                  if (!isTypingRef.current) {
+                      roomSocket.send({
+                          type: "typing",
+                      });
                     
-                        roomSocket.send({
-                            type: "stop_typing",
-                        });
-                      
-                        isTypingRef.current = false;
-                      
-                    }, 2000);
-                  }}
-                  onKeyDown={(e) => e.key === "Enter" && handleSend()}
-                  placeholder="Message the room…"
-                  className="flex-1 bg-transparent text-sm text-white placeholder-slate-500 outline-none min-w-0"
-                />
-                <button
-                  type="button"
-                  aria-label="Emoji"
-                  className="text-slate-500 hover:text-slate-300 transition-colors shrink-0"
-                >
-                  <SmilePlus className="w-4 h-4" />
-                </button>
-                <button
-                  type="button"
-                  onClick={handleSend}
-                  disabled={!chatInput.trim()}
-                  aria-label="Send message"
-                  className="text-violet-400 hover:text-violet-300 disabled:text-slate-600 disabled:cursor-not-allowed transition-colors shrink-0"
-                >
-                  <Send className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
+                      isTypingRef.current = true;
+                  }
+                
+                  if (typingTimeoutRef.current) {
+                      clearTimeout(typingTimeoutRef.current);
+                  }
+                
+                  typingTimeoutRef.current = window.setTimeout(() => {
+                      roomSocket.send({
+                          type: "stop_typing",
+                      });
+                    
+                      isTypingRef.current = false;
+                  }, 2000);
+              }}
+              onSend={handleSend}
+              messagesEndRef={messagesEndRef}
+          />
           </div>
         </aside>
       </div>
