@@ -1,12 +1,14 @@
 import type { ExecutionResult } from "../../types/execution";
-import { Terminal } from "lucide-react";
+import { Terminal, X } from "lucide-react";
 
 interface OutputPanelProps {
   execution: ExecutionResult;
+  onClose: () => void;
 }
 
 export default function OutputPanel({
   execution,
+  onClose,
 }: OutputPanelProps) {
   return (
     <div className="h-56 border-t border-slate-800 bg-slate-950 flex flex-col">
@@ -19,16 +21,23 @@ export default function OutputPanel({
           </span>
         </div>
 
-        <div className="flex items-center gap-4 text-xs text-slate-500">
-          <span>
-            Time:{" "}
-            {execution.executionTime ?? "--"}
-          </span>
-
-          <span>
-            Memory:{" "}
-            {execution.memory ?? "--"}
-          </span>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4 text-xs text-slate-500">
+            <span>
+              Time: {execution.executionTime ?? "--"}
+            </span>
+          
+            <span>
+              Memory: {execution.memory ?? "--"}
+            </span>
+          </div>
+          
+          <button
+            onClick={onClose}
+            className="p-1 rounded hover:bg-slate-800"
+          >
+            <X className="w-4 h-4 text-slate-400" />
+          </button>
         </div>
       </div>
 
