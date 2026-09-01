@@ -1,12 +1,6 @@
 import sys
 import bcrypt
 
-print("=" * 60)
-print("Python:", sys.executable)
-print("bcrypt:", bcrypt.__version__)
-print("bcrypt file:", bcrypt.__file__)
-print("=" * 60)
-
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
@@ -119,3 +113,4 @@ async def get_current_user(
         raise credentials_exception
 
     return user
+

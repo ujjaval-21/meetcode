@@ -3,12 +3,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_db
 from app.schemas.auth import (
+    GoogleAuthRequest,
     TokenResponse,
     UserLoginRequest,
     UserResponse,
     UserSignupRequest,
 )
 from app.services.auth_service import AuthService
+
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 
@@ -26,7 +28,7 @@ async def signup(
     Create a new user account.
 
     - **username**: must be unique
-    - **user_id**: must be unique
+    - **email**: must be unique
     - **password**: hashed with bcrypt before storage
     """
     auth_service = AuthService(db)
@@ -37,20 +39,41 @@ async def signup(
     "/login",
     response_model=TokenResponse,
     status_code=status.HTTP_200_OK,
-    summary="Authenticate a user and issue a JWT access token",
+    summary="Authenticate using username or email and issue a JWT access token",
 )
 async def login(
     payload: UserLoginRequest,
     db: AsyncSession = Depends(get_db),
 ) -> TokenResponse:
     """
-    Authenticate with username and password.
+    Authenticate with username or email and password.
 
-    - **username**: existing account username
-    - **password**: plain-text password, verified against the stored hash
+    - **identifier**: username or email
+    - **password**: verified against the stored hash
 
-    Returns a JWT **access_token** (type `bearer`) on success.
-    Responds with **401 Unauthorized** if the credentials are invalid.
+    Returns a JWT access token on success.
+    Responds with 401 Unauthorized if the credentials are invalid.
     """
     auth_service = AuthService(db)
     return await auth_service.login(payload)
+
+
+@router.post(
+    "/google",
+    response_model=TokenResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Authenticate with Google (auth-code flow) and issue a JWT",
+)
+async def google_login(
+    payload: GoogleAuthRequest,
+    db: AsyncSession = Depends(get_db),
+) -> TokenResponse:
+    """
+    Exchange a Google authorization code for tokens, verify identity,
+    and log in or register the user.
+
+    - **code**: the one-time authorization code returned by
+      `@react-oauth/google`'s auth-code flow on the frontend
+    """
+    auth_service = AuthService(db)
+    return await auth_service.oauth_login(provider="google", code=payload.code)

@@ -5,12 +5,10 @@ from pydantic import BaseModel, ConfigDict
 
 
 class UserResponse(BaseModel):
-    """Public user data — never includes hashed_password."""
-
     model_config = ConfigDict(from_attributes=True)
 
     id: uuid.UUID
     username: str
-    user_id: str
+    email: str
+    profile_picture: str | None = None
     created_at: datetime
-    

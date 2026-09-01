@@ -1,6 +1,7 @@
 import uuid
 from datetime import datetime
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, EmailStr
+
 
 class UserSignupRequest(BaseModel):
     """Payload required to register a new user."""
@@ -10,11 +11,9 @@ class UserSignupRequest(BaseModel):
         max_length=50,
         description="Unique username for the account.",
     )
-    user_id: str = Field(
+    email: EmailStr = Field(
         ...,
-        min_length=3,
-        max_length=50,
-        description="Unique public identifier for the user.",
+        description="Unique email address.",
     )
     password: str = Field(
         ...,
@@ -29,16 +28,16 @@ class UserResponse(BaseModel):
 
     id: uuid.UUID
     username: str
-    user_id: str
+    email: EmailStr
     created_at: datetime
 
 class UserLoginRequest(BaseModel):
     """Payload required to authenticate an existing user."""
-    username: str = Field(
+    identifier: str = Field(
         ...,
         min_length=3,
-        max_length=50,
-        description="Username of the account.",
+        max_length=255,
+        description="Username or email.",
     )
     password: str = Field(
         ...,
@@ -51,3 +50,13 @@ class TokenResponse(BaseModel):
     """JWT access token returned after successful login."""
     access_token: str
     token_type: str = "bearer"
+
+
+class GoogleAuthRequest(BaseModel):
+    """Authorization code returned by @react-oauth/google (auth-code flow)."""
+    code: str = Field(
+        ...,
+        description="One-time authorization code from Google, exchanged server-side for tokens.",
+    )
+
+    

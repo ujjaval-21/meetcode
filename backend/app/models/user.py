@@ -8,9 +8,11 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
 
+
 if TYPE_CHECKING:
     from app.models.participant import Participant
     from app.models.room import Room
+    from app.models.oauth_account import OAuthAccount
 
 
 class User(Base):
@@ -30,16 +32,27 @@ class User(Base):
         nullable=False,
     )
 
-    user_id: Mapped[str] = mapped_column(
-        String(50),
+    email: Mapped[str] = mapped_column(
+        String(255),
         unique=True,
         index=True,
         nullable=False,
     )
 
-    hashed_password: Mapped[str] = mapped_column(
+    hashed_password: Mapped[str | None] = mapped_column(
         String(255),
-        nullable=False,
+        nullable=True,
+    )
+
+    google_id: Mapped[str | None] = mapped_column(
+        String(255),
+        unique=True,
+        nullable=True,
+    )
+
+    profile_picture: Mapped[str | None] = mapped_column(
+        String(500),
+        nullable=True,
     )
 
     created_at: Mapped[datetime] = mapped_column(
@@ -48,7 +61,7 @@ class User(Base):
         nullable=False,
     )
 
-    # ── Relationships ──────────────────────────────────────────────────────────
+    # ── Relationships ──────
 
     # Rooms this user hosts.
     hosted_rooms: Mapped[list["Room"]] = relationship(
@@ -61,6 +74,14 @@ class User(Base):
     # All rooms this user has joined (via Participant join table).
     participations: Mapped[list["Participant"]] = relationship(
         "Participant",
+        back_populates="user",
+        cascade="all, delete-orphan",
+        lazy="select",
+    )
+    
+    # OAuth providers linked to this account (Google, GitHub, etc.)
+    oauth_accounts: Mapped[list["OAuthAccount"]] = relationship(
+        "OAuthAccount",
         back_populates="user",
         cascade="all, delete-orphan",
         lazy="select",

@@ -3,6 +3,8 @@ import { Link, useNavigate } from "react-router-dom";
 import { login } from "../services/auth";
 import { useAuth } from "../hooks/useAuth";
 import { AxiosError } from "axios";
+import { useGoogleAuth } from "../hooks/useGoogleAuth";
+
 
 type FormField = "identifier" | "password";
 
@@ -40,7 +42,15 @@ export default function LoginPage() {
   const navigate = useNavigate();
   const auth = useAuth();
   const [serverError, setServerError] = useState("");
+  const googleLogin = useGoogleAuth({
+    onSuccess: async () => {
+      await auth.login();
+      navigate("/dashboard");
+    },
+    onError: (message) => setServerError(message),
+  });
 
+  
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name as FormField]: value }));
@@ -59,7 +69,7 @@ export default function LoginPage() {
     setIsSubmitting(true);
     try {
       await login({
-        username: form.identifier,
+        identifier: form.identifier,
         password: form.password,
       });
 
@@ -82,9 +92,10 @@ export default function LoginPage() {
     setIsSubmitting(false);
   }
   }
+  
 
   return (
-    <main className="min-h-screen bg-zinc-950 flex items-center justify-center px-4 py-12">
+    <main className="min-h-screen bg-black flex items-center justify-center px-4 py-12">
       {/* Subtle grid background */}
       <div
         className="pointer-events-none fixed inset-0 opacity-[0.03]"
@@ -99,11 +110,23 @@ export default function LoginPage() {
         {/* Glow accent */}
         <div className="absolute -top-16 left-1/2 -translate-x-1/2 w-48 h-48 bg-lime-500/10 rounded-full blur-3xl pointer-events-none" />
 
-        <div className="relative bg-zinc-900 border border-zinc-800 rounded-2xl px-8 pt-10 pb-8 shadow-2xl shadow-black/60">
+        <div className="relative bg-zinc-950 border border-lime-500/20 rounded-2xl px-8 pt-10 pb-8 shadow-[0_0_80px_-20px_rgba(163,230,53,0.15)]">
+          {/* Close button */}
+          <button
+            type="button"
+            onClick={() => navigate("/")}
+            aria-label="Close"
+            className="absolute top-5 right-5 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-zinc-800/80 text-zinc-300 hover:bg-zinc-700 hover:text-white transition-colors"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-[18px] h-[18px]" aria-hidden="true">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
 
           {/* Logo & Title */}
           <header className="flex flex-col items-center gap-3 mb-8">
-            <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-lime-500 shadow-lg shadow-lime-500/30">
+            <div className="flex items-center justify-center w-12 h-12 rounded-2xl bg-lime-500 shadow-lg shadow-lime-500/30">
               {/* Code brackets icon */}
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -122,13 +145,29 @@ export default function LoginPage() {
             </div>
             <div className="text-center">
               <h1 className="text-2xl font-bold tracking-tight text-white font-mono">
-                MeetCode
+                Meet<span className="text-lime-400">Code</span>
               </h1>
               <p className="text-sm text-zinc-500 mt-1">
                 Collaborative coding, together.
               </p>
             </div>
           </header>
+
+          {/* Google Sign-In */}
+          <button
+            type="button"
+            onClick={() => googleLogin()}
+            className="flex items-center justify-center gap-2 w-full rounded-lg border border-zinc-700 bg-zinc-900 py-2.5 text-sm font-medium text-white hover:bg-zinc-800 transition-colors"
+          >
+            <GoogleIcon />
+            Continue with Google
+          </button>
+
+          <div className="flex items-center gap-3 my-6">
+            <div className="h-px flex-1 bg-zinc-800" />
+            <span className="text-xs text-zinc-500">OR</span>
+            <div className="h-px flex-1 bg-zinc-800" />
+          </div>
 
           {/* Login Form */}
           <form onSubmit={handleSubmit} noValidate aria-label="Login form">
@@ -142,26 +181,32 @@ export default function LoginPage() {
                 >
                   Email or Username
                 </label>
-                <input
-                  id="identifier"
-                  name="identifier"
-                  type="text"
-                  autoComplete="username"
-                  placeholder="you@example.com"
-                  value={form.identifier}
-                  onChange={handleChange}
-                  aria-invalid={!!errors.identifier}
-                  aria-describedby={
-                    errors.identifier ? "identifier-error" : undefined
-                  }
-                  className={[
-                    "w-full rounded-lg bg-zinc-800 border px-3.5 py-2.5 text-sm text-white placeholder-zinc-500",
-                    "focus:outline-none focus:ring-2 focus:ring-lime-500/60 focus:border-lime-500 transition-colors",
-                    errors.identifier
-                      ? "border-red-500"
-                      : "border-zinc-700 hover:border-zinc-600",
-                  ].join(" ")}
-                />
+                <div className="relative">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 pointer-events-none" aria-hidden="true">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                    <circle cx="12" cy="7" r="4" />
+                  </svg>
+                  <input
+                    id="identifier"
+                    name="identifier"
+                    type="text"
+                    autoComplete="username"
+                    placeholder="Enter your email or username"
+                    value={form.identifier}
+                    onChange={handleChange}
+                    aria-invalid={!!errors.identifier}
+                    aria-describedby={
+                      errors.identifier ? "identifier-error" : undefined
+                    }
+                    className={[
+                      "w-full rounded-lg bg-zinc-900 border pl-9 pr-3.5 py-2.5 text-sm text-white placeholder-zinc-500",
+                      "focus:outline-none focus:ring-2 focus:ring-lime-500/60 focus:border-lime-500 transition-colors",
+                      errors.identifier
+                        ? "border-red-500"
+                        : "border-zinc-700 hover:border-zinc-600",
+                    ].join(" ")}
+                  />
+                </div>
                 {errors.identifier && (
                   <p
                     id="identifier-error"
@@ -190,12 +235,16 @@ export default function LoginPage() {
                   </Link>
                 </div>
                 <div className="relative">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 pointer-events-none" aria-hidden="true">
+                    <rect x="3" y="11" width="18" height="11" rx="2" />
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                  </svg>
                   <input
                     id="password"
                     name="password"
                     type={showPassword ? "text" : "password"}
                     autoComplete="current-password"
-                    placeholder="••••••••"
+                    placeholder="Enter your password"
                     value={form.password}
                     onChange={handleChange}
                     aria-invalid={!!errors.password}
@@ -203,7 +252,7 @@ export default function LoginPage() {
                       errors.password ? "password-error" : undefined
                     }
                     className={[
-                      "w-full rounded-lg bg-zinc-800 border px-3.5 py-2.5 pr-11 text-sm text-white placeholder-zinc-500",
+                      "w-full rounded-lg bg-zinc-900 border pl-9 pr-11 py-2.5 text-sm text-white placeholder-zinc-500",
                       "focus:outline-none focus:ring-2 focus:ring-lime-500/60 focus:border-lime-500 transition-colors",
                       errors.password
                         ? "border-red-500"
@@ -252,8 +301,8 @@ export default function LoginPage() {
                 type="submit"
                 disabled={isSubmitting}
                 className={[
-                  "w-full mt-1 rounded-lg bg-lime-500 hover:bg-lime-400 text-zinc-900 font-semibold text-sm py-2.5 transition-colors",
-                  "focus:outline-none focus:ring-2 focus:ring-lime-500/60 focus:ring-offset-2 focus:ring-offset-zinc-900",
+                  "w-full mt-1 rounded-lg bg-lime-400 hover:bg-lime-300 text-zinc-900 font-semibold text-sm py-2.5 transition-colors",
+                  "focus:outline-none focus:ring-2 focus:ring-lime-500/60 focus:ring-offset-2 focus:ring-offset-zinc-950",
                   "disabled:opacity-60 disabled:cursor-not-allowed",
                 ].join(" ")}
               >
@@ -262,15 +311,8 @@ export default function LoginPage() {
             </div>
           </form>
 
-          {/* Divider */}
-          <div className="flex items-center gap-3 my-6">
-            <div className="flex-1 h-px bg-zinc-800" />
-            <span className="text-xs text-zinc-600 font-mono">or</span>
-            <div className="flex-1 h-px bg-zinc-800" />
-          </div>
-
           {/* Sign Up Link */}
-          <p className="text-center text-sm text-zinc-500">
+          <p className="text-center text-sm text-zinc-400 mt-6">
             Don&apos;t have an account?{" "}
             <Link
               to="/signup"
@@ -287,5 +329,28 @@ export default function LoginPage() {
         </p>
       </div>
     </main>
+  );
+}
+
+function GoogleIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 48 48" aria-hidden="true">
+      <path
+        fill="#FFC107"
+        d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 12.955 4 4 12.955 4 24s8.955 20 20 20 20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z"
+      />
+      <path
+        fill="#FF3D00"
+        d="M6.306 14.691l6.571 4.819C14.655 15.108 18.961 12 24 12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 16.318 4 9.656 8.337 6.306 14.691z"
+      />
+      <path
+        fill="#4CAF50"
+        d="M24 44c5.166 0 9.86-1.977 13.409-5.192l-6.19-5.238A11.91 11.91 0 0 1 24 36c-5.202 0-9.619-3.317-11.283-7.946l-6.522 5.025C9.505 39.556 16.227 44 24 44z"
+      />
+      <path
+        fill="#1976D2"
+        d="M43.611 20.083H42V20H24v8h11.303a12.04 12.04 0 0 1-4.087 5.571l.003-.002 6.19 5.238C36.971 39.205 44 34 44 24c0-1.341-.138-2.65-.389-3.917z"
+      />
+    </svg>
   );
 }

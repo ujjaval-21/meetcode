@@ -1,45 +1,56 @@
 import api from "./api";
 import {
-    saveToken,
-    removeToken,
+  saveToken,
+  removeToken,
 } from "./storage";
 
-interface LoginRequest {
-    username: string;
-    password: string;
+export interface LoginRequest {
+  identifier: string;
+  password: string;
 }
 
-interface SignupRequest {
-    username: string;
-    user_id: string;
-    password: string;
+export interface SignupRequest {
+  username: string;
+  email: string;
+  password: string;
 }
 
 interface TokenResponse {
-    access_token: string;
-    token_type: string;
+  access_token: string;
+  token_type: string;
 }
 
 export async function login(data: LoginRequest) {
-    const response = await api.post<TokenResponse>(
-        "/auth/login",
-        data
-    );
+  const response = await api.post<TokenResponse>(
+    "/auth/login",
+    data
+  );
 
-    saveToken(response.data.access_token);
+  saveToken(response.data.access_token);
 
-    return response.data;
+  return response.data;
 }
 
 export async function signup(data: SignupRequest) {
-    const response = await api.post(
-        "/auth/signup",
-        data
-    );
+  const response = await api.post(
+    "/auth/signup",
+    data
+  );
 
-    return response.data;
+  return response.data;
 }
 
 export function logout() {
-    removeToken();
+  removeToken();
+}
+
+export async function googleLogin(code: string) {
+  const response = await api.post<TokenResponse>(
+    "/auth/google",
+    { code }
+  );
+
+  saveToken(response.data.access_token);
+
+  return response.data;
 }
