@@ -20,6 +20,11 @@ interface TokenResponse {
   token_type: string;
 }
 
+export interface GoogleAuthRequest {
+  code: string;
+}
+
+
 export async function login(data: LoginRequest) {
   const response = await api.post<TokenResponse>(
     "/auth/login",
@@ -40,17 +45,21 @@ export async function signup(data: SignupRequest) {
   return response.data;
 }
 
-export function logout() {
-  removeToken();
-}
-
 export async function googleLogin(code: string) {
   const response = await api.post<TokenResponse>(
     "/auth/google",
-    { code }
+    {
+      code,
+    }
   );
 
   saveToken(response.data.access_token);
 
   return response.data;
 }
+
+
+export function logout() {
+  removeToken();
+}
+

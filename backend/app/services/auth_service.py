@@ -12,6 +12,8 @@ from app.models.user import User
 from app.models.oauth_account import OAuthAccount
 from app.schemas.auth import TokenResponse, UserLoginRequest, UserSignupRequest
 
+from app.models.oauth_account import OAuthAccount
+
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -206,4 +208,4 @@ class AuthService:
 
         access_token = create_access_token(subject=user.id)
         return TokenResponse(access_token=access_token, token_type="bearer")
-    
+

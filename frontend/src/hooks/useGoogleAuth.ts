@@ -1,31 +1,31 @@
+import { useNavigate } from "react-router-dom";
 import { useGoogleLogin } from "@react-oauth/google";
-import { AxiosError } from "axios";
+
 import { googleLogin } from "../services/auth";
+import { useAuth } from "./useAuth";
 
-interface UseGoogleAuthOptions {
-  onSuccess: () => void | Promise<void>;
-  onError?: (message: string) => void;
-}
+export function useGoogleAuth() {
+    const navigate = useNavigate();
+    const auth = useAuth();
 
-export function useGoogleAuth({ onSuccess, onError }: UseGoogleAuthOptions) {
-  return useGoogleLogin({
-    flow: "auth-code",
+    return useGoogleLogin({
+        flow: "auth-code",
 
-    onSuccess: async (codeResponse) => {
-      try {
-        await googleLogin(codeResponse.code);
-        await onSuccess();
-      } catch (error) {
-        const message =
-          error instanceof AxiosError
-            ? error.response?.data?.detail ?? "Google sign-in failed."
-            : "Something went wrong.";
-        onError?.(message);
-      }
-    },
+        onSuccess: async ({ code }) => {
+            try {
+                await googleLogin(code);
 
-    onError: () => {
-      onError?.("Google sign-in failed.");
-    },
-  });
+                // Update AuthContext
+                await auth.login();
+
+                navigate("/dashboard");
+            } catch (err) {
+                console.error(err);
+            }
+        },
+
+        onError: () => {
+            console.error("Google Login Failed");
+        },
+    });
 }

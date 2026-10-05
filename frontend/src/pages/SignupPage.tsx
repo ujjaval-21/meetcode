@@ -161,13 +161,7 @@ export default function SignupPage({ onClose }: SignupPageProps) {
   const [serverError, setServerError] = useState("");
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [termsError, setTermsError] = useState("");
-  const googleLogin = useGoogleAuth({
-    onSuccess: async () => {
-      await auth.login();
-      navigate("/dashboard");
-    },
-    onError: (message) => setServerError(message),
-  });
+  const googleLogin = useGoogleAuth();
 
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {

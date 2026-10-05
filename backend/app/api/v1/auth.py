@@ -12,7 +12,9 @@ from app.schemas.auth import (
 from app.services.auth_service import AuthService
 
 
+
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
+
 
 @router.post(
     "/signup",
@@ -34,6 +36,7 @@ async def signup(
     auth_service = AuthService(db)
     new_user = await auth_service.signup(payload)
     return new_user
+
 
 @router.post(
     "/login",
@@ -68,12 +71,10 @@ async def google_login(
     payload: GoogleAuthRequest,
     db: AsyncSession = Depends(get_db),
 ) -> TokenResponse:
-    """
-    Exchange a Google authorization code for tokens, verify identity,
-    and log in or register the user.
 
-    - **code**: the one-time authorization code returned by
-      `@react-oauth/google`'s auth-code flow on the frontend
-    """
     auth_service = AuthService(db)
-    return await auth_service.oauth_login(provider="google", code=payload.code)
+
+    return await auth_service.oauth_login(
+        provider="google",
+        code=payload.code,
+    )

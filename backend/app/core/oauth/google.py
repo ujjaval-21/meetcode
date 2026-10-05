@@ -56,7 +56,6 @@ def _verify_id_token_sync(token: str) -> dict[str, Any]:
             settings.GOOGLE_CLIENT_ID,
         )
     except ValueError as e:
-        print("GOOGLE TOKEN VERIFY FAILED:", str(e))  # TEMP DEBUG — remove after diagnosis
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid Google token.",

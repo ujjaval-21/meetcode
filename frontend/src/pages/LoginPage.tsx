@@ -42,14 +42,8 @@ export default function LoginPage() {
   const navigate = useNavigate();
   const auth = useAuth();
   const [serverError, setServerError] = useState("");
-  const googleLogin = useGoogleAuth({
-    onSuccess: async () => {
-      await auth.login();
-      navigate("/dashboard");
-    },
-    onError: (message) => setServerError(message),
-  });
-
+  const googleLogin = useGoogleAuth();
+  
   
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
     const { name, value } = e.target;
